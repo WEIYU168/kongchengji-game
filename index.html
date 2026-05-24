@@ -330,6 +330,29 @@
             display: block;
         }
 
+        #music-toggle-btn {
+            position: fixed;
+            left: 18px;
+            bottom: 18px;
+            z-index: 75;
+            display: none;
+            min-width: 118px;
+            padding: 10px 14px;
+            border: 1px solid rgba(246, 196, 83, 0.62);
+            border-radius: 6px;
+            background: rgba(8, 13, 25, 0.82);
+            color: #fff7d6;
+            font-weight: 800;
+            cursor: pointer;
+            backdrop-filter: blur(6px);
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32);
+            touch-action: manipulation;
+        }
+
+        #music-toggle-btn.is-visible {
+            display: block;
+        }
+
         #visual-container {
             min-height: 0;
             position: relative;
@@ -1155,6 +1178,8 @@
             font-weight: 800;
             font-size: clamp(1rem, 1.6vw, 1.22rem);
             text-align: center;
+            cursor: pointer;
+            touch-action: manipulation;
         }
 
         .route-zone.is-placed {
@@ -1206,6 +1231,7 @@
             font-size: clamp(1.18rem, 2vw, 1.55rem);
             font-weight: 900;
             cursor: grab;
+            touch-action: manipulation;
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.24);
         }
 
@@ -1216,6 +1242,12 @@
         .route-token.is-placed {
             opacity: 0.42;
             cursor: default;
+        }
+
+        .route-token.is-selected {
+            border-color: #fff7d6;
+            background: #6ee7b7;
+            box-shadow: 0 0 0 4px rgba(110, 231, 183, 0.28), 0 12px 24px rgba(0, 0, 0, 0.28);
         }
 
         .victory-celebration {
@@ -1441,6 +1473,10 @@
                 grid-template-rows: auto 72vh auto;
             }
 
+            #game-container.is-route-scene {
+                grid-template-rows: auto minmax(620px, calc(100vh - 88px)) auto;
+            }
+
             #stage-game-layer .qin-status {
                 width: 100%;
                 gap: 6px;
@@ -1492,6 +1528,7 @@
             .route-panel {
                 grid-template-columns: 1fr;
                 grid-template-rows: minmax(300px, 1fr) auto;
+                min-height: 0;
             }
 
             .route-roster {
@@ -1502,6 +1539,21 @@
             .route-roster-title,
             .route-message {
                 grid-column: 1 / -1;
+            }
+
+            .route-map {
+                min-height: 300px;
+            }
+
+            .route-zone {
+                width: min(96px, 24%);
+                min-height: 58px;
+                font-size: 0.9rem;
+            }
+
+            .route-token {
+                padding: 11px 10px;
+                font-size: 1.08rem;
             }
         }
     </style>
@@ -1523,7 +1575,12 @@
         <button id="skip-opening-btn" type="button">略過</button>
     </section>
     <audio id="game-music" src="./空城音樂.mp3" loop preload="auto"></audio>
+    <audio id="right-sound" src="./right.mp3" preload="auto"></audio>
+    <audio id="wrong-sound" src="./wrong.mp3" preload="auto"></audio>
+    <audio id="over-sound" src="./over.mp3" preload="auto"></audio>
+    <audio id="finish-sound" src="./finish.mp3" preload="auto"></audio>
     <button id="opening-restart-btn" type="button">重頭開始</button>
+    <button id="music-toggle-btn" type="button" aria-pressed="false">音樂關閉</button>
 
     <main id="game-container" class="is-hidden">
         <section id="hud" aria-label="遊戲狀態">
@@ -2070,6 +2127,13 @@
         const playOpeningBtn = document.getElementById('play-opening-btn');
         const skipOpeningBtn = document.getElementById('skip-opening-btn');
         const gameMusic = document.getElementById('game-music');
+        const musicToggleBtn = document.getElementById('music-toggle-btn');
+        const feedbackSounds = {
+            right: document.getElementById('right-sound'),
+            wrong: document.getElementById('wrong-sound'),
+            over: document.getElementById('over-sound'),
+            finish: document.getElementById('finish-sound')
+        };
         const gameContainer = document.getElementById('game-container');
         const openingRestartBtn = document.getElementById('opening-restart-btn');
 
@@ -2088,11 +2152,14 @@
         let shouldResumeMusicAfterQin = false;
         let routeState = null;
         let gameHasBegun = false;
+        let musicMuted = false;
         let activeText = '';
         let typingDone = false;
         let typingAudioContext;
         let lastTypingSoundAt = 0;
         let lastWhackPopAt = 0;
+        let lastFeedbackKind = '';
+        let lastFeedbackAt = 0;
 
         const qinIdioms = {
             calm: ['面不改色', '從容不迫', '神態自若', '鎮定自若', '心如止水', '不慌不忙', '悠然自得', '從容安閒'],
@@ -2340,6 +2407,35 @@
             });
         }
 
+        function playFeedbackSound(kind, delay = 0) {
+            const sound = feedbackSounds[kind];
+            if (!sound) return;
+
+            const play = () => {
+                sound.pause();
+                sound.currentTime = 0;
+                sound.volume = kind === 'finish' ? 0.82 : 0.9;
+                lastFeedbackKind = kind;
+                lastFeedbackAt = Date.now();
+                const soundPlay = sound.play();
+                if (soundPlay) {
+                    soundPlay.catch(() => {});
+                }
+            };
+
+            if (delay > 0) {
+                setTimeout(play, delay);
+            } else {
+                play();
+            }
+        }
+
+        function updateMusicToggle() {
+            musicToggleBtn.classList.toggle('is-visible', gameHasBegun);
+            musicToggleBtn.textContent = musicMuted ? '音樂開啟' : '音樂關閉';
+            musicToggleBtn.setAttribute('aria-pressed', String(musicMuted));
+        }
+
         function shouldPlayTypingSound(scene) {
             return scene.speaker === '系統提問';
         }
@@ -2369,6 +2465,7 @@
             titleScreen.classList.add('hide');
             gameContainer.classList.remove('is-hidden');
             openingRestartBtn.classList.remove('is-visible');
+            updateMusicToggle();
             startGameMusic(true);
             localStorage.removeItem(STORAGE_KEY);
             currentSceneId = 'start';
@@ -2379,6 +2476,10 @@
         }
 
         function startGameMusic(restart = false) {
+            if (musicMuted) {
+                gameMusic.pause();
+                return;
+            }
             if (restart) {
                 gameMusic.currentTime = 0;
             }
@@ -2402,7 +2503,7 @@
         }
 
         function resumeGameMusicAfterQinGame() {
-            if (!shouldResumeMusicAfterQin) return;
+            if (!shouldResumeMusicAfterQin || musicMuted) return;
 
             shouldResumeMusicAfterQin = false;
             gameMusic.volume = 0.6;
@@ -2538,9 +2639,16 @@
                 stopGameMusic();
             }
             if (isFailureScene(scene)) {
-                playFailureSceneSound();
+                if (!(lastFeedbackKind === 'over' && Date.now() - lastFeedbackAt < 1400)) {
+                    playFeedbackSound('over', lastFeedbackKind === 'wrong' && Date.now() - lastFeedbackAt < 600 ? 320 : 0);
+                }
+            } else if (scene.ending) {
+                if (!(lastFeedbackKind === 'finish' && Date.now() - lastFeedbackAt < 1400)) {
+                    playFeedbackSound('finish', lastFeedbackKind === 'right' && Date.now() - lastFeedbackAt < 600 ? 300 : 0);
+                }
             }
             openingRestartBtn.classList.toggle('is-visible', Boolean(scene.ending));
+            updateMusicToggle();
 
             eventRibbon.textContent = scene.ribbon || '';
             eventRibbon.classList.toggle('show', Boolean(scene.ribbon));
@@ -2681,7 +2789,8 @@
                 failScene: config.failScene,
                 successEffects: config.successEffects,
                 locked: false,
-                placed: new Set()
+                placed: new Set(),
+                selectedGeneral: ''
             };
 
             choicesContainer.innerHTML = '';
@@ -2729,7 +2838,7 @@
                     }
                     event.dataTransfer.setData('text/plain', token.dataset.general);
                 });
-                token.addEventListener('click', () => updateRouteMessage(`拖曳「${token.dataset.general}」到北山小路左右側靠山處。`));
+                token.addEventListener('click', () => selectRouteGeneral(token));
             });
 
             panel.querySelectorAll('.route-zone').forEach((zone) => {
@@ -2743,7 +2852,25 @@
                     zone.classList.remove('is-hovered');
                     handleRouteDrop(event.dataTransfer.getData('text/plain'), zone);
                 });
+                zone.addEventListener('click', () => {
+                    if (!routeState || routeState.locked) return;
+                    if (!routeState.selectedGeneral) {
+                        updateRouteMessage('先點一位將軍，再點要佈置的位置。');
+                        return;
+                    }
+                    handleRouteDrop(routeState.selectedGeneral, zone);
+                });
             });
+        }
+
+        function selectRouteGeneral(token) {
+            if (!routeState || routeState.locked || token.classList.contains('is-placed')) return;
+
+            routeState.selectedGeneral = token.dataset.general;
+            document.querySelectorAll('.route-token').forEach((node) => {
+                node.classList.toggle('is-selected', node === token);
+            });
+            updateRouteMessage(`已選「${routeState.selectedGeneral}」，請點北山小路左右側靠山處。`);
         }
 
         function handleRouteDrop(general, zone) {
@@ -2761,9 +2888,11 @@
             zone.textContent = general;
             zone.classList.add('is-placed');
             routeState.placed.add(general);
+            routeState.selectedGeneral = '';
             playRoutePlacedSound();
             const token = document.querySelector(`.route-token[data-general="${general}"]`);
             if (token) token.classList.add('is-placed');
+            document.querySelectorAll('.route-token').forEach((node) => node.classList.remove('is-selected'));
 
             updateRouteMessage(routeState.placed.size >= 2 ? '北山伏兵已定。' : '再派一將守另一側。');
             if (routeState.placed.size >= 2) {
@@ -2782,6 +2911,7 @@
             routeState.locked = true;
             updateRouteMessage(message);
             const nextScene = success ? routeState.successScene : routeState.failScene;
+            playFeedbackSound(success ? 'right' : 'over');
             if (success) {
                 applyEffects(routeState.successEffects);
             }
@@ -2803,7 +2933,6 @@
                 <div class="victory-plaque">恭喜過關</div>
             `;
             stageGameLayer.appendChild(celebration);
-            playVictorySound();
 
             setTimeout(() => renderChoices(scene), 900);
         }
@@ -3188,6 +3317,7 @@
                 .filter((tile) => tile.target)
                 .forEach((tile) => removeQinTile(tile));
             playQinMistakeSound();
+            playFeedbackSound('wrong');
             updateQinHud();
             updateQinMessage(message);
 
@@ -3248,6 +3378,7 @@
             });
             updateQinMessage(message);
             playQinCadence(success);
+            playFeedbackSound(success ? 'right' : 'over');
 
             qinTimers.forEach((timer) => {
                 if (timer.type === 'interval') {
@@ -3462,6 +3593,7 @@
             } else {
                 whackState.mistakes += 1;
                 flashWhackHole(hole, 'wrong');
+                playFeedbackSound('wrong');
                 updateWhackMessage(`${item.label} 不可打。`);
                 if (whackState.mistakes >= whackState.maxMistakes) {
                     finishWhackGame(false, '軍令失準，街面失控。');
@@ -3506,6 +3638,7 @@
 
             const nextScene = success ? whackState.successScene : whackState.failScene;
             playWhackSound(success ? 'success' : 'fail');
+            playFeedbackSound(success ? 'right' : 'over');
             whackTimers.forEach((timer) => {
                 if (timer.type === 'interval') {
                     clearInterval(timer.id);
@@ -3556,6 +3689,20 @@
             }
         }
 
+        function isWrongChoice(choice) {
+            if (!choice || !choice.nextScene || choice.nextScene === 'restart') return false;
+            if (String(choice.nextScene).startsWith('bad_end')) return true;
+
+            const nextScene = getScene(choice.nextScene);
+            return isFailureScene(nextScene);
+        }
+
+        function shouldPlayChoiceFeedback(scene, choice) {
+            if (!scene || !choice || choice.nextScene === 'restart') return false;
+            if (scene.speaker === '系統提問') return true;
+            return scene.choices.length > 1 && (Boolean(choice.effects) || isWrongChoice(choice));
+        }
+
         function renderChoices(scene) {
             choicesContainer.innerHTML = '';
             if (isFailureScene(scene) && canRewind()) {
@@ -3573,6 +3720,9 @@
                 btn.innerHTML = `${choice.text}${choice.note ? `<small>${choice.note}</small>` : ''}`;
                 btn.onclick = () => {
                     recordChoiceCheckpoint();
+                    if (shouldPlayChoiceFeedback(scene, choice)) {
+                        playFeedbackSound(isWrongChoice(choice) ? 'wrong' : 'right');
+                    }
                     applyEffects(choice.effects);
                     loadScene(choice.nextScene);
                 };
@@ -3619,6 +3769,21 @@
             gameMusic.currentTime = checkpoint.musicTime || 0;
             startGameMusic(false);
             loadScene(checkpoint.sceneId);
+        }
+
+        function toggleGameMusic() {
+            musicMuted = !musicMuted;
+            updateMusicToggle();
+
+            if (musicMuted) {
+                gameMusic.pause();
+                return;
+            }
+
+            const scene = getScene(currentSceneId);
+            if (gameHasBegun && scene && !scene.ending && !gameContainer.classList.contains('is-qin-scene')) {
+                startGameMusic(false);
+            }
         }
 
         function typeWriterEffect(text, callback, withSound = false) {
@@ -3703,6 +3868,7 @@
             openingVideoScreen.classList.remove('is-active');
             playOpeningBtn.classList.remove('is-visible');
             openingRestartBtn.classList.remove('is-visible');
+            updateMusicToggle();
             titleScreen.classList.remove('hide');
             restartTitleAnimation();
         }
@@ -3715,6 +3881,7 @@
             playOpeningBtn.classList.remove('is-visible');
             titleScreen.classList.add('hide');
             gameContainer.classList.remove('is-hidden');
+            updateMusicToggle();
             startGameMusic(true);
             localStorage.removeItem(STORAGE_KEY);
             currentSceneId = 'start';
@@ -3742,6 +3909,7 @@
             gameContainer.classList.add('is-hidden');
             titleScreen.classList.add('hide');
             openingRestartBtn.classList.remove('is-visible');
+            updateMusicToggle();
             openingVideoScreen.classList.add('is-active');
             playOpeningBtn.classList.remove('is-visible');
             openingVideo.currentTime = 0;
@@ -3754,6 +3922,7 @@
 
         restartBtn.addEventListener('click', resetGame);
         openingRestartBtn.addEventListener('click', returnToOpeningVideo);
+        musicToggleBtn.addEventListener('click', toggleGameMusic);
         startGameBtn.addEventListener('click', () => {
             ensureTypingAudio();
             beginGame();
@@ -3771,6 +3940,7 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             updateStats();
+            updateMusicToggle();
             openingVideo.currentTime = 0;
             openingVideo.muted = false;
             const playOpening = openingVideo.play();
