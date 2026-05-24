@@ -1485,7 +1485,7 @@
             }
 
             #stage-game-layer .whack-piece {
-                inset: 5%;
+                inset: 0;
             }
 
             #game-container.is-qin-scene {
@@ -3622,6 +3622,9 @@
                 whackState.score += 1;
                 flashWhackHole(hole, 'hit');
                 playWhackSound('hit');
+                if (whackState.score < whackState.targetScore) {
+                    playFeedbackSound('right');
+                }
                 updateWhackMessage(`${item.label} 已壓下。`);
                 if (whackState.score >= whackState.targetScore) {
                     finishWhackGame(true, '街面重歸寂靜。');
