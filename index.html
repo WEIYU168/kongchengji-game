@@ -675,18 +675,6 @@
             display: none;
         }
 
-        .whack-label {
-            position: absolute;
-            color: #fff7d6;
-            font-size: clamp(1.45rem, 5vw, 2.6rem);
-            font-weight: 800;
-            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.72);
-        }
-
-        .whack-img:not(.is-missing) + .whack-label {
-            opacity: 0;
-        }
-
         .whack-hole.hit {
             border-color: #6ee7b7;
             box-shadow:
@@ -2226,6 +2214,41 @@
             });
         }
 
+        function playFailureSceneSound() {
+            const audioContext = ensureTypingAudio();
+            if (!audioContext || audioContext.state === 'closed') return;
+
+            const now = audioContext.currentTime;
+            const notes = [
+                { frequency: 196, delay: 0, duration: 0.42, volume: 0.07, type: 'sawtooth' },
+                { frequency: 146, delay: 0.16, duration: 0.54, volume: 0.065, type: 'triangle' },
+                { frequency: 98, delay: 0.36, duration: 0.72, volume: 0.06, type: 'sawtooth' }
+            ];
+
+            notes.forEach((note) => {
+                const startAt = now + note.delay;
+                const oscillator = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                const filter = audioContext.createBiquadFilter();
+
+                oscillator.type = note.type;
+                oscillator.frequency.setValueAtTime(note.frequency * 1.04, startAt);
+                oscillator.frequency.exponentialRampToValueAtTime(note.frequency, startAt + note.duration);
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(720, startAt);
+                filter.frequency.exponentialRampToValueAtTime(260, startAt + note.duration);
+                gain.gain.setValueAtTime(0.0001, startAt);
+                gain.gain.exponentialRampToValueAtTime(note.volume, startAt + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.0001, startAt + note.duration);
+
+                oscillator.connect(gain);
+                gain.connect(filter);
+                filter.connect(audioContext.destination);
+                oscillator.start(startAt);
+                oscillator.stop(startAt + note.duration + 0.04);
+            });
+        }
+
         function playQinNote(frequency, delay = 0, volume = 0.042, duration = 0.95) {
             const audioContext = ensureTypingAudio();
             if (!audioContext || audioContext.state === 'closed') return;
@@ -2513,6 +2536,9 @@
             bgLayer.style.filter = scene.ending ? 'saturate(0.9)' : 'none';
             if (scene.ending) {
                 stopGameMusic();
+            }
+            if (isFailureScene(scene)) {
+                playFailureSceneSound();
             }
             openingRestartBtn.classList.toggle('is-visible', Boolean(scene.ending));
 
@@ -3331,7 +3357,6 @@
                 hole.innerHTML = `
                     <span class="whack-piece">
                         <img class="whack-img is-missing" alt="">
-                        <span class="whack-label"></span>
                     </span>
                 `;
 
@@ -3400,25 +3425,21 @@
         function setWhackHoleItem(index, item) {
             const hole = whackState.holes[index];
             const img = hole.querySelector('.whack-img');
-            const label = hole.querySelector('.whack-label');
 
             img.classList.add('is-missing');
             img.src = item.src.replace(/^url\(['"]?/, '').replace(/['"]?\)$/, '');
             img.alt = item.label;
-            label.textContent = item.label;
             hole.classList.add('active');
         }
 
         function clearWhackHole(index) {
             const hole = whackState.holes[index];
             const img = hole.querySelector('.whack-img');
-            const label = hole.querySelector('.whack-label');
 
             whackState.activeItems[index] = null;
             hole.classList.remove('active');
             img.removeAttribute('src');
             img.alt = '';
-            label.textContent = '';
         }
 
         function handleWhackHit(index) {
