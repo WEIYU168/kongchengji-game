@@ -1,0 +1,22 @@
+{
+  "title": "第X幕：示例劇情",
+  "text": "這是一段示例劇情文字。玩家可以選擇以下兩個行動。",
+  "image": "assets/images/placeholder.jpg",
+  "choices": [
+    {
+      "text": "選項 A",
+      "next": "2",
+      "statsDelta": { "智謀": 1 }
+    },
+    {
+      "text": "選項 B",
+      "next": "2",
+      "statsDelta": { "鎮定": 1 }
+    }
+  ],
+  "quiz": {
+    "question": "以下哪個詞語是成語？",
+    "options": ["山清水秀", "天空藍藍", "雨天"],
+    "answerIndex": 0
+  }
+}

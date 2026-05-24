@@ -1,0 +1,3762 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>空城計 - 心理戰互動遊戲</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap');
+
+        :root {
+            --bg: #0b1020;
+            --panel: #111827;
+            --panel-2: #162033;
+            --line: #3f4d63;
+            --text: #edf2f7;
+            --muted: #aeb8c8;
+            --gold: #f6c453;
+            --red: #ef6b73;
+            --green: #6ee7b7;
+            --blue: #7dd3fc;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Noto Serif TC', serif;
+            background:
+                radial-gradient(circle at top left, rgba(125, 211, 252, 0.12), transparent 34rem),
+                linear-gradient(135deg, #080b13 0%, #111827 52%, #15111f 100%);
+            color: var(--text);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #title-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            background:
+                linear-gradient(rgba(8, 13, 25, 0.68), rgba(8, 13, 25, 0.84)),
+                url('./assets/images/西城空無一人.png') center / cover no-repeat;
+            transition: opacity 0.7s ease, visibility 0.7s ease;
+        }
+
+        #title-screen.hide {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        #opening-video-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 55;
+            display: none;
+            place-items: center;
+            background: #020617;
+        }
+
+        #opening-video-screen.is-active {
+            display: grid;
+        }
+
+        #opening-video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #020617;
+        }
+
+        #play-opening-btn,
+        #skip-opening-btn {
+            position: absolute;
+            z-index: 2;
+            padding: 12px 18px;
+            border: 1px solid rgba(246, 196, 83, 0.72);
+            border-radius: 6px;
+            color: #fff7d6;
+            background: rgba(15, 23, 42, 0.72);
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+
+        #play-opening-btn {
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            display: none;
+            min-width: 220px;
+            padding: 18px 32px;
+            font-size: clamp(1.25rem, 3.2vw, 1.75rem);
+            font-weight: 900;
+            background: rgba(15, 23, 42, 0.86);
+        }
+
+        #play-opening-btn.is-visible {
+            display: block;
+        }
+
+        #skip-opening-btn {
+            right: 18px;
+            bottom: 18px;
+        }
+
+        #play-opening-btn:hover,
+        #skip-opening-btn:hover {
+            border-color: #fff0bd;
+            background: rgba(51, 65, 85, 0.84);
+        }
+
+        .title-inner {
+            position: relative;
+            width: min(900px, 94vw);
+            text-align: center;
+        }
+
+        .title-inner::before {
+            content: "";
+            position: absolute;
+            left: 50%;
+            top: 16%;
+            width: min(760px, 92vw);
+            height: 190px;
+            transform: translateX(-50%);
+            background: radial-gradient(ellipse, rgba(246, 196, 83, 0.18), rgba(246, 196, 83, 0) 70%);
+            pointer-events: none;
+        }
+
+        .generated-title-image {
+            position: relative;
+            z-index: 1;
+            width: min(820px, 96vw);
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            filter:
+                drop-shadow(0 18px 24px rgba(0, 0, 0, 0.62))
+                drop-shadow(0 0 18px rgba(246, 196, 83, 0.26));
+            opacity: 0;
+            transform: translateY(10px) scale(0.985);
+            animation: titleImageIn 2.8s ease forwards;
+        }
+
+        .title-mark {
+            width: min(420px, 70vw);
+            height: 1px;
+            margin: 4px auto 22px;
+            background: linear-gradient(90deg, transparent, rgba(246, 196, 83, 0.78), transparent);
+            transform: scaleX(0);
+            transform-origin: center;
+            animation: inkLine 0.9s ease 1.2s forwards;
+        }
+
+        .title-subtitle {
+            min-height: 1.7em;
+            color: #d4dde9;
+            font-size: clamp(0.95rem, 2.5vw, 1.2rem);
+            letter-spacing: 0.12em;
+            opacity: 0;
+            animation: titleFadeIn 0.8s ease 1.55s forwards;
+        }
+
+        .title-credit {
+            margin-top: 16px;
+            color: #fff0bd;
+            font-size: clamp(0.95rem, 2.2vw, 1.2rem);
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            opacity: 0;
+            text-shadow: 0 2px 12px rgba(0, 0, 0, 0.62);
+            animation: titleFadeIn 0.9s ease 2.1s forwards;
+        }
+
+        #start-game-btn {
+            margin-top: 28px;
+            padding: 17px 34px;
+            min-width: 210px;
+            border: 1px solid rgba(246, 196, 83, 0.72);
+            border-radius: 6px;
+            color: #fff7d6;
+            background: rgba(22, 32, 51, 0.72);
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32);
+            cursor: pointer;
+            font-size: clamp(1.18rem, 2.8vw, 1.55rem);
+            font-weight: 900;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+            animation: titleFadeIn 0.8s ease 2.45s forwards;
+        }
+
+        #start-game-btn:hover {
+            border-color: #fff0bd;
+            background: rgba(51, 65, 85, 0.84);
+            transform: translateY(4px);
+        }
+
+        #game-container.is-hidden {
+            display: none;
+        }
+
+        @keyframes titleImageIn {
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes inkLine {
+            to { transform: scaleX(1); }
+        }
+
+        @keyframes titleFadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        #game-container {
+            display: grid;
+            grid-template-columns: minmax(0, 70%) minmax(340px, 30%);
+            grid-template-rows: auto minmax(0, 1fr);
+            width: calc(100vw - 16px);
+            height: calc(100vh - 16px);
+            margin: 8px auto;
+            background: rgba(15, 23, 42, 0.96);
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
+        }
+
+        #hud {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: minmax(160px, 1fr) repeat(4, minmax(96px, 130px)) auto;
+            gap: 10px;
+            align-items: center;
+            padding: 12px 14px;
+            background: rgba(8, 13, 25, 0.92);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+        }
+
+        #chapter-title {
+            color: var(--gold);
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .stat {
+            min-width: 0;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            color: var(--muted);
+            font-size: 0.78rem;
+            line-height: 1.3;
+        }
+
+        .stat-value { color: var(--text); font-weight: 700; }
+
+        .meter {
+            height: 6px;
+            margin-top: 5px;
+            background: #1f2937;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .meter-fill {
+            height: 100%;
+            width: 50%;
+            border-radius: inherit;
+            transition: width 0.3s ease;
+        }
+
+        .meter-wisdom { background: var(--blue); }
+        .meter-calm { background: var(--green); }
+        .meter-discipline { background: var(--gold); }
+        .meter-suspicion { background: var(--red); }
+
+        #restart-btn {
+            width: 38px;
+            height: 34px;
+            display: grid;
+            place-items: center;
+            border: 1px solid #526178;
+            border-radius: 6px;
+            color: #f8fafc;
+            background: #1e293b;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: transform 0.15s ease, background 0.15s ease;
+        }
+
+        #restart-btn:hover {
+            background: #334155;
+            transform: translateY(-1px);
+        }
+
+        #opening-restart-btn {
+            position: fixed;
+            right: 18px;
+            bottom: 18px;
+            z-index: 70;
+            display: none;
+            padding: 12px 18px;
+            border: 1px solid rgba(246, 196, 83, 0.75);
+            border-radius: 6px;
+            color: #111827;
+            background: #f6c453;
+            font-weight: 900;
+            cursor: pointer;
+            box-shadow: 0 14px 28px rgba(0, 0, 0, 0.34);
+        }
+
+        #opening-restart-btn.is-visible {
+            display: block;
+        }
+
+        #visual-container {
+            min-height: 0;
+            position: relative;
+            overflow: hidden;
+            background: #111827;
+            border-right: 2px solid #334155;
+        }
+
+        #bg-layer {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: background-image 0.45s ease-in-out, filter 0.3s ease;
+        }
+
+        #bg-layer::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(8, 13, 25, 0.35), rgba(8, 13, 25, 0.03) 52%, rgba(8, 13, 25, 0.22));
+            pointer-events: none;
+        }
+
+        .character {
+            position: absolute;
+            bottom: 0;
+            height: 96%;
+            width: 44%;
+            background-size: contain;
+            background-repeat: no-repeat;
+            opacity: 0;
+            z-index: 5;
+            transition: opacity 0.45s ease-in-out, transform 0.45s ease-out;
+            filter: drop-shadow(0 10px 22px rgba(0,0,0,0.45));
+        }
+
+        .char-center { left: 50%; transform: translateX(-50%) translateY(30px); background-position: bottom center; }
+        .char-center.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+        .char-right { right: 1%; transform: translateX(50px); background-position: bottom right; }
+        .char-right.show { transform: translateX(0); opacity: 1; }
+
+        .char-left { left: 1%; transform: translateX(-50px); background-position: bottom left; }
+        .char-left.show { transform: translateX(0); opacity: 1; }
+
+        .char-small { height: 78%; width: 36%; }
+        .char-hall-shocked { height: 98%; width: 56%; }
+        .char-kongming-smaller { height: 76%; width: 34%; }
+        .char-left-bottom {
+            left: 0;
+            bottom: -2%;
+            height: 66%;
+            width: 34%;
+            transform: translateX(-42px);
+            background-position: bottom left;
+        }
+        .char-left-bottom.show { transform: translateX(0); opacity: 1; }
+        .char-sima-zhao {
+            bottom: -3%;
+            height: 80%;
+            width: 44%;
+        }
+        .char-center-right {
+            left: 58%;
+            height: 88%;
+            width: 38%;
+            transform: translateX(-50%) translateY(28px);
+            background-position: bottom center;
+        }
+        .char-center-right.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .char-sima-probe {
+            left: 54%;
+            height: 74%;
+            width: 30%;
+            transform: translateX(-50%) translateY(24px);
+            background-position: bottom center;
+        }
+        .char-sima-probe.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .char-kid-feature { right: 6%; left: auto; height: 90%; width: 48%; background-position: bottom right; }
+        .char-kid-feature.show { transform: translateX(0); opacity: 1; }
+
+        #association-box {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            z-index: 7;
+            width: min(420px, 52%);
+            aspect-ratio: 4 / 3;
+            border: 1px solid rgba(246, 196, 83, 0.5);
+            border-radius: 8px;
+            background-color: rgba(15, 23, 42, 0.72);
+            background-position: center bottom;
+            background-repeat: no-repeat;
+            background-size: contain;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.34);
+            opacity: 0;
+            pointer-events: none;
+            transform: translateX(-50%) translateY(-8px) scale(0.96);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        #association-box.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0) scale(1);
+        }
+
+        #event-ribbon {
+            position: absolute;
+            left: 14px;
+            top: 14px;
+            z-index: 8;
+            max-width: min(420px, calc(100% - 28px));
+            padding: 8px 12px;
+            border: 1px solid rgba(246, 196, 83, 0.5);
+            border-radius: 6px;
+            color: #fff7d6;
+            background: rgba(15, 23, 42, 0.72);
+            backdrop-filter: blur(6px);
+            font-size: 0.9rem;
+            opacity: 0;
+            transform: translateY(-8px);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        #event-ribbon.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        #stage-game-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 9;
+            display: none;
+            padding: clamp(14px, 2.4vw, 30px);
+            pointer-events: none;
+        }
+
+        #stage-game-layer.is-active {
+            display: grid;
+        }
+
+        #dialogue-box {
+            min-height: 0;
+            background: var(--panel);
+            padding: clamp(18px, 2.4vw, 30px);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #dialogue-box::-webkit-scrollbar { width: 8px; }
+        #dialogue-box::-webkit-scrollbar-track { background: #0f172a; }
+        #dialogue-box::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        #dialogue-box::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        #speaker-name {
+            color: var(--gold);
+            font-weight: 700;
+            font-size: clamp(1.32rem, 2.25vw, 1.82rem);
+            letter-spacing: 0;
+            border-bottom: 1px solid #475569;
+            padding-bottom: 7px;
+            margin-bottom: 10px;
+        }
+
+        #dialogue-text {
+            font-size: clamp(1.18rem, 1.95vw, 1.42rem);
+            line-height: 1.9;
+            min-height: 96px;
+            white-space: normal;
+        }
+
+        #choices-container {
+            margin-top: 14px;
+            display: grid;
+            gap: 10px;
+            padding-bottom: 6px;
+        }
+
+        .choice-btn {
+            --choice-accent: #7dd3fc;
+            --choice-bg-a: rgba(38, 55, 82, 0.95);
+            --choice-bg-b: rgba(24, 34, 53, 0.95);
+            position: relative;
+            overflow: hidden;
+            background:
+                linear-gradient(90deg, rgba(255, 255, 255, 0.06), transparent 34%),
+                linear-gradient(90deg, var(--choice-bg-a), var(--choice-bg-b));
+            border: 1px solid color-mix(in srgb, var(--choice-accent) 52%, #536278);
+            color: #f8fafc;
+            padding: 13px 16px;
+            text-align: left;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: inset 4px 0 0 var(--choice-accent), 0 8px 18px rgba(0, 0, 0, 0.16);
+            transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+            font-size: clamp(1.1rem, 1.75vw, 1.28rem);
+            line-height: 1.5;
+        }
+
+        .choice-btn:nth-child(3n + 1) {
+            --choice-accent: #f6c453;
+            --choice-bg-a: rgba(76, 55, 30, 0.96);
+            --choice-bg-b: rgba(39, 42, 54, 0.96);
+        }
+
+        .choice-btn:nth-child(3n + 2) {
+            --choice-accent: #6ee7b7;
+            --choice-bg-a: rgba(28, 69, 66, 0.96);
+            --choice-bg-b: rgba(23, 42, 54, 0.96);
+        }
+
+        .choice-btn:nth-child(3n + 3) {
+            --choice-accent: #ef6b73;
+            --choice-bg-a: rgba(80, 38, 51, 0.96);
+            --choice-bg-b: rgba(39, 34, 53, 0.96);
+        }
+
+        .choice-btn:hover {
+            background:
+                linear-gradient(90deg, rgba(255, 255, 255, 0.1), transparent 38%),
+                linear-gradient(90deg, color-mix(in srgb, var(--choice-bg-a) 86%, white), var(--choice-bg-b));
+            border-color: color-mix(in srgb, var(--choice-accent) 78%, white);
+            box-shadow: inset 5px 0 0 var(--choice-accent), 0 10px 22px rgba(0, 0, 0, 0.24);
+            transform: translateX(5px);
+        }
+
+        .choice-btn small {
+            display: block;
+            margin-top: 4px;
+            color: #b8c2d0;
+            font-size: 0.82rem;
+        }
+
+        .choice-btn.is-rewind {
+            --choice-accent: #fff0bd;
+            --choice-bg-a: rgba(98, 77, 28, 0.98);
+            --choice-bg-b: rgba(55, 45, 26, 0.98);
+            font-size: clamp(1.05rem, 1.7vw, 1.22rem);
+            font-weight: 900;
+        }
+
+        .whack-panel {
+            display: grid;
+            gap: 12px;
+        }
+
+        .whack-status {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .whack-stat {
+            border: 1px solid #46566d;
+            border-radius: 6px;
+            background: rgba(15, 23, 42, 0.74);
+            padding: 8px 10px;
+            color: #dbeafe;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        .whack-stat strong {
+            display: block;
+            color: #fff7d6;
+            font-size: 1.15rem;
+        }
+
+        .whack-grid {
+            width: min(430px, 100%);
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(68px, 1fr));
+            gap: 10px;
+        }
+
+        #game-container.is-whack-scene #stage-game-layer,
+        #game-container.is-whack-scene .whack-hole {
+            cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cg transform='rotate(-32 24 24)'%3E%3Crect x='21' y='3' width='7' height='40' rx='3.5' fill='%237a4a22' stroke='%233f2412' stroke-width='2.2'/%3E%3Crect x='18' y='4' width='13' height='8' rx='3' fill='%23925f2c' stroke='%233f2412' stroke-width='1.6'/%3E%3Cpath d='M24.5 12v28' stroke='%23c08a4a' stroke-width='1.8' stroke-linecap='round' opacity='.75'/%3E%3Cpath d='M20 17h9M19 26h10M20 35h9' stroke='%233f2412' stroke-width='1.3' stroke-linecap='round' opacity='.45'/%3E%3C/g%3E%3C/svg%3E") 24 38, pointer;
+        }
+
+        .whack-hole {
+            position: relative;
+            aspect-ratio: 1;
+            border: 1px solid rgba(246, 196, 83, 0.62);
+            border-radius: 50%;
+            background:
+                radial-gradient(circle at 50% 34%, rgba(51, 65, 85, 0.88), rgba(15, 23, 42, 0.9) 62%, rgba(8, 13, 25, 0.96));
+            box-shadow:
+                inset 0 -10px 18px rgba(0, 0, 0, 0.24),
+                inset 0 8px 14px rgba(246, 196, 83, 0.14),
+                0 8px 18px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .whack-hole:disabled {
+            cursor: default;
+        }
+
+        #game-container.is-whack-scene .whack-hole:disabled,
+        #game-container.is-whack-scene .whack-result {
+            cursor: default;
+        }
+
+        #game-container.is-whack-scene .whack-confirm-btn {
+            cursor: pointer;
+        }
+
+        #game-container.is-whack-scene .whack-hole:active {
+            cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cg transform='rotate(-8 24 24)'%3E%3Crect x='21' y='3' width='8' height='41' rx='4' fill='%23815428' stroke='%233f2412' stroke-width='2.3'/%3E%3Crect x='17' y='4' width='15' height='9' rx='3.5' fill='%23b77938' stroke='%233f2412' stroke-width='1.7'/%3E%3Cpath d='M25 13v28' stroke='%23deb06a' stroke-width='2' stroke-linecap='round' opacity='.8'/%3E%3Cpath d='M20 18h10M20 27h10M20 36h10' stroke='%233f2412' stroke-width='1.4' stroke-linecap='round' opacity='.48'/%3E%3C/g%3E%3C/svg%3E") 25 40, pointer;
+        }
+
+        .whack-piece {
+            position: absolute;
+            inset: 12%;
+            display: grid;
+            place-items: center;
+            opacity: 0;
+            transform: translateY(58%);
+            transition: opacity 0.14s ease, transform 0.18s ease;
+            pointer-events: none;
+        }
+
+        .whack-hole.active .whack-piece {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .whack-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.42));
+        }
+
+        .whack-img.is-missing {
+            display: none;
+        }
+
+        .whack-label {
+            position: absolute;
+            color: #fff7d6;
+            font-size: clamp(1.45rem, 5vw, 2.6rem);
+            font-weight: 800;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.72);
+        }
+
+        .whack-img:not(.is-missing) + .whack-label {
+            opacity: 0;
+        }
+
+        .whack-hole.hit {
+            border-color: #6ee7b7;
+            box-shadow:
+                inset 0 -10px 18px rgba(0, 0, 0, 0.24),
+                inset 0 8px 14px rgba(246, 196, 83, 0.14),
+                0 0 0 4px rgba(110, 231, 183, 0.34);
+        }
+
+        .whack-hole.wrong {
+            border-color: #ef6b73;
+            box-shadow:
+                inset 0 -10px 18px rgba(0, 0, 0, 0.24),
+                inset 0 8px 14px rgba(246, 196, 83, 0.14),
+                0 0 0 4px rgba(239, 107, 115, 0.34);
+        }
+
+        .whack-message {
+            min-height: 1.4em;
+            color: #fff7d6;
+            text-align: center;
+            font-size: 0.95rem;
+        }
+
+        #stage-game-layer .whack-panel {
+            width: 100%;
+            height: 100%;
+            grid-template-rows: auto minmax(0, 1fr) auto;
+            align-items: center;
+            gap: clamp(12px, 1.8vw, 20px);
+            pointer-events: auto;
+        }
+
+        #stage-game-layer .whack-status {
+            width: min(620px, 82%);
+            justify-self: center;
+            align-self: start;
+        }
+
+        #stage-game-layer .whack-stat {
+            background: rgba(8, 13, 25, 0.74);
+            border-color: rgba(246, 196, 83, 0.46);
+            backdrop-filter: blur(5px);
+            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.24);
+        }
+
+        #stage-game-layer .whack-grid {
+            width: min(760px, 88%, calc(74vh - 96px));
+            align-self: center;
+            gap: clamp(14px, 2vw, 24px);
+        }
+
+        #stage-game-layer .whack-hole {
+            border-color: rgba(246, 196, 83, 0.68);
+            background:
+                radial-gradient(circle at 50% 34%, rgba(51, 65, 85, 0.88), rgba(15, 23, 42, 0.9) 62%, rgba(8, 13, 25, 0.96));
+            box-shadow:
+                inset 0 -12px 20px rgba(0, 0, 0, 0.26),
+                inset 0 10px 18px rgba(246, 196, 83, 0.16),
+                0 14px 28px rgba(0, 0, 0, 0.32);
+        }
+
+        #stage-game-layer .whack-hole.hit {
+            border-color: #6ee7b7;
+            box-shadow:
+                inset 0 -12px 20px rgba(0, 0, 0, 0.26),
+                inset 0 10px 18px rgba(246, 196, 83, 0.16),
+                0 0 0 5px rgba(110, 231, 183, 0.38),
+                0 14px 28px rgba(0, 0, 0, 0.32);
+        }
+
+        #stage-game-layer .whack-hole.wrong {
+            border-color: #ef6b73;
+            box-shadow:
+                inset 0 -12px 20px rgba(0, 0, 0, 0.26),
+                inset 0 10px 18px rgba(246, 196, 83, 0.16),
+                0 0 0 5px rgba(239, 107, 115, 0.38),
+                0 14px 28px rgba(0, 0, 0, 0.32);
+        }
+
+        #stage-game-layer .whack-message {
+            justify-self: center;
+            align-self: end;
+            padding: 8px 14px;
+            border: 1px solid rgba(246, 196, 83, 0.42);
+            border-radius: 6px;
+            background: rgba(8, 13, 25, 0.72);
+            color: #fff7d6;
+            backdrop-filter: blur(5px);
+            font-size: clamp(0.95rem, 1.3vw, 1.1rem);
+        }
+
+        .whack-result {
+            position: absolute;
+            inset: 0;
+            z-index: 3;
+            display: grid;
+            place-items: center;
+            padding: 20px;
+            background: rgba(8, 13, 25, 0.36);
+            backdrop-filter: blur(3px);
+            pointer-events: auto;
+        }
+
+        .whack-result-card {
+            width: min(380px, 100%);
+            border: 1px solid rgba(246, 196, 83, 0.62);
+            border-radius: 8px;
+            background: rgba(15, 23, 42, 0.92);
+            box-shadow: 0 22px 46px rgba(0, 0, 0, 0.42);
+            padding: clamp(22px, 3vw, 30px);
+            text-align: center;
+        }
+
+        .whack-result-card h2 {
+            margin: 0 0 10px;
+            color: #fff7d6;
+            font-size: clamp(1.45rem, 2.4vw, 1.9rem);
+            letter-spacing: 0;
+        }
+
+        .whack-result-card p {
+            margin: 0 0 18px;
+            color: #dbeafe;
+            line-height: 1.7;
+        }
+
+        .whack-confirm-btn {
+            border: 1px solid rgba(246, 196, 83, 0.75);
+            border-radius: 6px;
+            background: #f6c453;
+            color: #111827;
+            padding: 10px 24px;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+            transition: transform 0.16s ease, box-shadow 0.16s ease;
+        }
+
+        .whack-confirm-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 28px rgba(0, 0, 0, 0.34);
+        }
+
+        .qin-panel {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr) auto;
+            gap: clamp(12px, 1.8vw, 20px);
+            align-items: center;
+            pointer-events: auto;
+        }
+
+        .qin-status {
+            width: min(980px, 94%);
+            justify-self: center;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .qin-stat,
+        .qin-target {
+            border: 1px solid rgba(246, 196, 83, 0.46);
+            border-radius: 6px;
+            background: rgba(8, 13, 25, 0.74);
+            color: #dbeafe;
+            padding: 8px 10px;
+            text-align: center;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.24);
+        }
+
+        .qin-stat strong {
+            display: block;
+            color: #fff7d6;
+            font-size: 1.15rem;
+        }
+
+        .qin-target {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(14px, 2.2vw, 28px);
+            min-height: clamp(76px, 10vw, 110px);
+        }
+
+        .qin-target span {
+            color: #fff0bd;
+            font-size: clamp(1.25rem, 2.8vw, 2rem);
+            font-weight: 900;
+        }
+
+        #qin-target-phrase {
+            display: flex;
+            justify-content: center;
+            gap: clamp(8px, 1.2vw, 14px);
+            white-space: nowrap;
+        }
+
+        .qin-target-list {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            color: #fff7d6;
+            letter-spacing: 0;
+        }
+
+        .qin-target-phrase {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            min-height: 2.4rem;
+            padding: 6px;
+            border: 1px solid rgba(246, 196, 83, 0.24);
+            border-radius: 6px;
+            background: rgba(15, 23, 42, 0.52);
+        }
+
+        .qin-target-phrase.is-current {
+            border-color: rgba(246, 196, 83, 0.72);
+            box-shadow: inset 0 0 0 1px rgba(246, 196, 83, 0.12);
+        }
+
+        .qin-target-phrase.is-complete {
+            border-color: rgba(110, 231, 183, 0.62);
+            background: rgba(20, 83, 45, 0.34);
+        }
+
+        .qin-target-mark {
+            min-width: 2.2em;
+            color: #bbf7d0;
+            font-size: 0.9rem;
+            font-weight: 800;
+        }
+
+        .qin-target-char {
+            display: grid;
+            place-items: center;
+            width: 1.8em;
+            aspect-ratio: 1;
+            border: 1px solid rgba(246, 196, 83, 0.34);
+            border-radius: 6px;
+            background: rgba(15, 23, 42, 0.7);
+            font-size: clamp(1.5rem, 3.6vw, 2.8rem);
+        }
+
+        .qin-target-char.is-caught {
+            color: #0f172a;
+            background: #f6c453;
+            border-color: #fff0bd;
+        }
+
+        .qin-track {
+            position: relative;
+            width: min(920px, 92%);
+            height: 100%;
+            min-height: 300px;
+            justify-self: center;
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            overflow: hidden;
+            border: 1px solid rgba(246, 196, 83, 0.52);
+            border-radius: 8px;
+            background:
+                linear-gradient(to bottom, rgba(8, 13, 25, 0.38), rgba(8, 13, 25, 0.78)),
+                radial-gradient(circle at top, rgba(246, 196, 83, 0.16), transparent 44%);
+            box-shadow: inset 0 -28px 40px rgba(0, 0, 0, 0.28), 0 18px 34px rgba(0, 0, 0, 0.34);
+        }
+
+        .qin-lane {
+            position: relative;
+            border-left: 1px solid rgba(246, 196, 83, 0.16);
+            background: linear-gradient(to bottom, rgba(15, 23, 42, 0.18), rgba(15, 23, 42, 0.34));
+        }
+
+        .qin-lane::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            width: 1px;
+            transform: translateX(-50%);
+            background: linear-gradient(to bottom, rgba(255, 247, 214, 0.08), rgba(246, 196, 83, 0.54), rgba(255, 247, 214, 0.08));
+            box-shadow: 0 0 10px rgba(246, 196, 83, 0.22);
+        }
+
+        .qin-lane:first-child {
+            border-left: 0;
+        }
+
+        .qin-catcher {
+            position: absolute;
+            left: 3%;
+            right: 3%;
+            bottom: 8px;
+            z-index: 5;
+            min-height: 72px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(246, 196, 83, 0.48);
+            border-radius: 8px;
+            background:
+                linear-gradient(90deg, transparent, rgba(246, 196, 83, 0.2), transparent),
+                rgba(8, 13, 25, 0.58);
+            color: #fff7d6;
+            font-size: clamp(0.86rem, 1.3vw, 1rem);
+            font-weight: 700;
+            box-shadow: 0 0 18px rgba(246, 196, 83, 0.24);
+            pointer-events: none;
+        }
+
+        .qin-catcher::before {
+            content: "";
+            position: absolute;
+            left: 2%;
+            right: 2%;
+            top: 6px;
+            height: 5px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, transparent, rgba(246, 196, 83, 0.9), transparent);
+        }
+
+        .qin-catcher.is-sparked {
+            border-color: rgba(187, 247, 208, 0.94);
+            box-shadow: 0 0 24px rgba(110, 231, 183, 0.42), inset 0 0 18px rgba(246, 196, 83, 0.2);
+        }
+
+        .qin-tile {
+            --y: -80px;
+            position: absolute;
+            left: 50%;
+            top: 0;
+            z-index: 2;
+            width: min(78px, 15%);
+            aspect-ratio: 1;
+            display: grid;
+            place-items: center;
+            border: 1px solid rgba(246, 196, 83, 0.72);
+            border-radius: 8px;
+            background: rgba(246, 196, 83, 0.9);
+            color: #111827;
+            font-size: clamp(1.25rem, 2.8vw, 1.9rem);
+            font-weight: 800;
+            transform: translate(-50%, var(--y));
+            cursor: pointer;
+            touch-action: manipulation;
+            box-shadow: 0 14px 24px rgba(0, 0, 0, 0.32);
+            transition: transform 0.05s linear, border-color 0.14s ease, background 0.14s ease;
+        }
+
+        .qin-tile.is-target {
+            z-index: 4;
+            border-color: rgba(239, 107, 115, 0.78);
+            background: rgba(127, 29, 29, 0.9);
+            color: #fee2e2;
+        }
+
+        .qin-tile.is-tense {
+            z-index: 2;
+            border-color: rgba(239, 107, 115, 0.78);
+            background: rgba(127, 29, 29, 0.9);
+            color: #fee2e2;
+        }
+
+        .qin-tile.is-caught {
+            pointer-events: none;
+            background: #6ee7b7;
+            border-color: #bbf7d0;
+            transform: translate(-50%, var(--y)) scale(0.92);
+        }
+
+        .qin-spark {
+            position: absolute;
+            z-index: 7;
+            width: 86px;
+            aspect-ratio: 1;
+            border-radius: 50%;
+            pointer-events: none;
+            transform: translate(-50%, -50%) scale(0.35);
+            background:
+                radial-gradient(circle, rgba(255, 255, 255, 0.98) 0 8%, rgba(246, 196, 83, 0.92) 9% 20%, rgba(110, 231, 183, 0.34) 21% 42%, transparent 43%),
+                conic-gradient(from 0deg, transparent 0 10%, rgba(255, 247, 214, 0.96) 12% 15%, transparent 17% 30%, rgba(110, 231, 183, 0.9) 33% 36%, transparent 38% 58%, rgba(246, 196, 83, 0.95) 60% 63%, transparent 65% 100%);
+            filter: drop-shadow(0 0 14px rgba(246, 196, 83, 0.55));
+            animation: qinSparkBurst 0.48s ease-out forwards;
+        }
+
+        @keyframes qinSparkBurst {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.25) rotate(0deg); }
+            28% { opacity: 1; transform: translate(-50%, -50%) scale(0.9) rotate(18deg); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1.28) rotate(42deg); }
+        }
+
+        .qin-message {
+            justify-self: center;
+            align-self: end;
+            min-height: 1.4em;
+            padding: 8px 14px;
+            border: 1px solid rgba(246, 196, 83, 0.42);
+            border-radius: 6px;
+            background: rgba(8, 13, 25, 0.72);
+            color: #fff7d6;
+            text-align: center;
+            backdrop-filter: blur(5px);
+            font-size: clamp(0.95rem, 1.3vw, 1.1rem);
+        }
+
+        .route-panel {
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+            gap: clamp(12px, 1.8vw, 20px);
+            align-items: stretch;
+            pointer-events: auto;
+        }
+
+        .route-map {
+            position: relative;
+            min-height: 360px;
+            border: 1px solid rgba(246, 196, 83, 0.52);
+            border-radius: 8px;
+            overflow: hidden;
+            background:
+                linear-gradient(to bottom, rgba(51, 65, 85, 0.9) 0 28%, rgba(63, 98, 86, 0.9) 29% 56%, rgba(42, 86, 65, 0.92) 57% 100%),
+                radial-gradient(circle at 48% 58%, rgba(246, 196, 83, 0.2), transparent 28%);
+            box-shadow: inset 0 -28px 46px rgba(0, 0, 0, 0.28), 0 18px 34px rgba(0, 0, 0, 0.34);
+        }
+
+        .route-paths {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .route-label,
+        .route-city,
+        .route-zone {
+            position: absolute;
+            z-index: 2;
+        }
+
+        .route-label {
+            color: #fff7d6;
+            font-size: clamp(0.82rem, 1.3vw, 1rem);
+            font-weight: 800;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+        }
+
+        .route-city {
+            display: grid;
+            place-items: center;
+            min-width: 72px;
+            padding: 8px 10px;
+            border: 1px solid rgba(246, 196, 83, 0.68);
+            border-radius: 6px;
+            background: rgba(8, 13, 25, 0.72);
+            color: #fff7d6;
+            font-weight: 900;
+            box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
+        }
+
+        .route-zone {
+            width: min(118px, 18%);
+            min-height: 74px;
+            display: grid;
+            place-items: center;
+            border: 2px dashed rgba(246, 196, 83, 0.64);
+            border-radius: 8px;
+            background: rgba(8, 13, 25, 0.46);
+            color: #fff7d6;
+            font-weight: 800;
+            font-size: clamp(1rem, 1.6vw, 1.22rem);
+            text-align: center;
+        }
+
+        .route-zone.is-placed {
+            border-style: solid;
+            border-color: rgba(255, 247, 214, 0.95);
+            background: rgba(20, 83, 45, 0.72);
+            box-shadow: 0 0 0 4px rgba(110, 231, 183, 0.2), 0 0 24px rgba(110, 231, 183, 0.32);
+        }
+
+        .route-zone.is-valid {
+            border-color: rgba(110, 231, 183, 0.84);
+            background: rgba(20, 83, 45, 0.44);
+        }
+
+        .route-zone.is-invalid {
+            border-color: rgba(239, 107, 115, 0.76);
+            background: rgba(127, 29, 29, 0.42);
+        }
+
+        .route-zone.is-hovered {
+            box-shadow: 0 0 0 4px rgba(246, 196, 83, 0.18), 0 0 24px rgba(246, 196, 83, 0.32);
+        }
+
+        .route-roster {
+            display: grid;
+            grid-template-rows: auto repeat(4, minmax(46px, auto)) auto;
+            gap: 10px;
+            align-content: start;
+            padding: 12px;
+            border: 1px solid rgba(246, 196, 83, 0.46);
+            border-radius: 8px;
+            background: rgba(8, 13, 25, 0.74);
+            backdrop-filter: blur(5px);
+        }
+
+        .route-roster-title,
+        .route-message {
+            color: #fff7d6;
+            text-align: center;
+            font-weight: 800;
+        }
+
+        .route-token {
+            border: 1px solid rgba(246, 196, 83, 0.68);
+            border-radius: 6px;
+            background: #f6c453;
+            color: #111827;
+            padding: 13px 14px;
+            font-size: clamp(1.18rem, 2vw, 1.55rem);
+            font-weight: 900;
+            cursor: grab;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.24);
+        }
+
+        .route-token:active {
+            cursor: grabbing;
+        }
+
+        .route-token.is-placed {
+            opacity: 0.42;
+            cursor: default;
+        }
+
+        .victory-celebration {
+            position: absolute;
+            inset: 0;
+            z-index: 6;
+            display: grid;
+            place-items: center;
+            pointer-events: auto;
+            overflow: hidden;
+        }
+
+        .victory-celebration::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at 50% 46%, rgba(255, 247, 214, 0.28), transparent 30%),
+                linear-gradient(to bottom, rgba(8, 13, 25, 0.08), rgba(8, 13, 25, 0.36));
+        }
+
+        .victory-plaque {
+            position: relative;
+            z-index: 2;
+            min-width: min(520px, 82%);
+            padding: clamp(24px, 4vw, 38px) clamp(34px, 6vw, 64px);
+            border: 5px solid #7c2d12;
+            border-radius: 8px;
+            background:
+                linear-gradient(90deg, rgba(255, 255, 255, 0.24), transparent 28%, rgba(255, 255, 255, 0.18) 72%, transparent),
+                linear-gradient(#f6c453, #b7791f);
+            color: #4a1d0b;
+            text-align: center;
+            font-size: clamp(2.35rem, 7vw, 5.6rem);
+            font-weight: 1000;
+            letter-spacing: 0;
+            text-shadow: 0 2px 0 rgba(255, 247, 214, 0.72), 0 8px 18px rgba(0, 0, 0, 0.28);
+            box-shadow:
+                inset 0 0 0 3px rgba(255, 247, 214, 0.68),
+                0 24px 54px rgba(0, 0, 0, 0.42);
+            animation: victoryPlaquePop 0.72s cubic-bezier(0.18, 0.9, 0.24, 1.25) both;
+        }
+
+        .victory-plaque::before,
+        .victory-plaque::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            width: 24px;
+            aspect-ratio: 1;
+            border-radius: 50%;
+            background: #7c2d12;
+            box-shadow: inset 0 0 0 5px #fef3c7;
+            transform: translateY(-50%);
+        }
+
+        .victory-plaque::before { left: 14px; }
+        .victory-plaque::after { right: 14px; }
+
+        .firework {
+            position: absolute;
+            z-index: 1;
+            width: 9px;
+            aspect-ratio: 1;
+            border-radius: 50%;
+            background: #fff7d6;
+            box-shadow:
+                0 -54px #f6c453,
+                38px -38px #6ee7b7,
+                54px 0 #ef6b73,
+                38px 38px #93c5fd,
+                0 54px #fef3c7,
+                -38px 38px #f97316,
+                -54px 0 #bbf7d0,
+                -38px -38px #f9a8d4;
+            animation: fireworkBurst 1.35s ease-out infinite;
+        }
+
+        .firework:nth-child(2) { left: 18%; top: 28%; animation-delay: 0.05s; }
+        .firework:nth-child(3) { right: 16%; top: 24%; animation-delay: 0.32s; }
+        .firework:nth-child(4) { left: 28%; bottom: 22%; animation-delay: 0.62s; }
+        .firework:nth-child(5) { right: 26%; bottom: 20%; animation-delay: 0.92s; }
+
+        @keyframes victoryPlaquePop {
+            0% { opacity: 0; transform: translateY(18px) scale(0.84); }
+            65% { opacity: 1; transform: translateY(0) scale(1.04); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes fireworkBurst {
+            0% { opacity: 0; transform: scale(0.18); filter: blur(0); }
+            18% { opacity: 1; }
+            100% { opacity: 0; transform: scale(1.9); filter: blur(0.8px); }
+        }
+
+        .cursor::after { content: '|'; animation: blink 1s step-end infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        @media (max-width: 760px) {
+            body {
+                overflow: auto;
+            }
+
+            #game-container {
+                grid-template-columns: 1fr;
+                width: 100%;
+                height: auto;
+                min-height: 100vh;
+                margin: 0;
+                border-radius: 0;
+                grid-template-rows: auto 42vh 1fr;
+            }
+
+            #visual-container {
+                border-right: 0;
+                border-bottom: 2px solid #334155;
+            }
+
+            #hud {
+                grid-column: 1;
+                grid-template-columns: 1fr 1fr;
+            }
+
+            #chapter-title,
+            #restart-btn {
+                grid-column: span 2;
+            }
+
+            #restart-btn {
+                justify-self: end;
+                grid-row: 1;
+            }
+
+            .character {
+                width: 58%;
+                height: 86%;
+            }
+
+            .generated-title-image {
+                width: min(700px, 100vw);
+            }
+
+            .char-left,
+            .char-right {
+                width: 52%;
+            }
+
+            .char-hall-shocked {
+                width: 66%;
+                height: 90%;
+            }
+
+            .char-kid-feature {
+                width: 58%;
+                height: 84%;
+            }
+
+            .char-kongming-smaller {
+                width: 44%;
+                height: 72%;
+            }
+
+            .char-left-bottom {
+                width: 40%;
+                height: 62%;
+            }
+
+            .char-sima-zhao {
+                width: 52%;
+                height: 76%;
+            }
+
+            .char-center-right {
+                left: 62%;
+                width: 42%;
+                height: 82%;
+            }
+
+            .char-sima-probe {
+                left: 54%;
+                width: 40%;
+                height: 72%;
+            }
+
+            #association-box {
+                top: 10px;
+                left: 50%;
+                width: min(260px, 54%);
+            }
+
+            .whack-grid {
+                gap: 8px;
+            }
+
+            #game-container.is-whack-scene {
+                grid-template-rows: auto 68vh auto;
+            }
+
+            #stage-game-layer {
+                padding: 12px;
+            }
+
+            #stage-game-layer .whack-status {
+                width: 100%;
+                gap: 6px;
+            }
+
+            #stage-game-layer .whack-stat {
+                padding: 6px 8px;
+                font-size: 0.78rem;
+            }
+
+            #stage-game-layer .whack-stat strong {
+                font-size: 1rem;
+            }
+
+            #stage-game-layer .whack-grid {
+                width: min(96%, 54vh);
+                gap: 10px;
+            }
+
+            #game-container.is-qin-scene {
+                grid-template-rows: auto 72vh auto;
+            }
+
+            #stage-game-layer .qin-status {
+                width: 100%;
+                gap: 6px;
+            }
+
+            #stage-game-layer .qin-stat,
+            #stage-game-layer .qin-target {
+                padding: 6px 8px;
+                font-size: 0.78rem;
+            }
+
+            #stage-game-layer .qin-target {
+                flex-direction: column;
+                min-height: 88px;
+                gap: 6px;
+            }
+
+            #stage-game-layer .qin-target span {
+                font-size: 1.08rem;
+            }
+
+            #stage-game-layer .qin-stat strong {
+                font-size: 1rem;
+            }
+
+            #stage-game-layer #qin-target-phrase {
+                gap: 5px;
+            }
+
+            #stage-game-layer .qin-target-char {
+                font-size: 1.35rem;
+            }
+
+            #stage-game-layer .qin-target-list {
+                grid-template-columns: 1fr;
+                gap: 5px;
+            }
+
+            #stage-game-layer .qin-target-phrase {
+                min-height: 2rem;
+                padding: 4px;
+            }
+
+            #stage-game-layer .qin-track {
+                width: min(98%, 72vh);
+                min-height: 320px;
+            }
+
+            .route-panel {
+                grid-template-columns: 1fr;
+                grid-template-rows: minmax(300px, 1fr) auto;
+            }
+
+            .route-roster {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                grid-template-rows: auto auto auto;
+            }
+
+            .route-roster-title,
+            .route-message {
+                grid-column: 1 / -1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <section id="title-screen" aria-label="遊戲開場">
+        <div class="title-inner">
+            <img class="generated-title-image" src="./assets/images/opening-title-kongchengji-transparent.png" alt="空城計">
+            <div class="title-mark"></div>
+            <p class="title-subtitle">一座空城，一曲琴音，一場疑心之戰</p>
+            <p class="title-credit">南一書局X林威宇老師製作</p>
+            <button id="start-game-btn" type="button">展開遊戲</button>
+        </div>
+    </section>
+
+    <section id="opening-video-screen" class="is-active" aria-label="開場影片">
+        <video id="opening-video" src="./開場影片.mp4" playsinline autoplay preload="auto"></video>
+        <button id="play-opening-btn" type="button">播放開場</button>
+        <button id="skip-opening-btn" type="button">略過</button>
+    </section>
+    <audio id="game-music" src="./空城音樂.mp3" loop preload="auto"></audio>
+    <button id="opening-restart-btn" type="button">重頭開始</button>
+
+    <main id="game-container" class="is-hidden">
+        <section id="hud" aria-label="遊戲狀態">
+            <div id="chapter-title">序章：西城危局</div>
+            <div class="stat">
+                <div class="stat-row"><span>智謀</span><span class="stat-value" id="wisdom-value">50</span></div>
+                <div class="meter"><div class="meter-fill meter-wisdom" id="wisdom-meter"></div></div>
+            </div>
+            <div class="stat">
+                <div class="stat-row"><span>鎮定</span><span class="stat-value" id="calm-value">50</span></div>
+                <div class="meter"><div class="meter-fill meter-calm" id="calm-meter"></div></div>
+            </div>
+            <div class="stat">
+                <div class="stat-row"><span>軍紀</span><span class="stat-value" id="discipline-value">50</span></div>
+                <div class="meter"><div class="meter-fill meter-discipline" id="discipline-meter"></div></div>
+            </div>
+            <div class="stat">
+                <div class="stat-row"><span>司馬懿疑心</span><span class="stat-value" id="suspicion-value">50</span></div>
+                <div class="meter"><div class="meter-fill meter-suspicion" id="suspicion-meter"></div></div>
+            </div>
+            <button id="restart-btn" type="button" title="重新開始" aria-label="重新開始">↻</button>
+        </section>
+
+        <section id="visual-container" aria-label="故事場景">
+            <div id="bg-layer"></div>
+            <div id="event-ribbon"></div>
+            <div id="association-box" aria-hidden="true"></div>
+            <div id="character-layer" class="character"></div>
+            <div id="character-layer-2" class="character"></div>
+            <div id="stage-game-layer" aria-live="polite"></div>
+        </section>
+
+        <section id="dialogue-box">
+            <h1 id="speaker-name">旁白</h1>
+            <p id="dialogue-text" class="cursor"></p>
+            <div id="choices-container"></div>
+        </section>
+    </main>
+
+    <script>
+        const IMG = (name) => `url('./assets/images/${name}')`;
+        const STORAGE_KEY = 'kongchengji-expanded-state';
+
+        const initialStats = {
+            wisdom: 50,
+            calm: 50,
+            discipline: 50,
+            suspicion: 50
+        };
+
+        const storyData = {
+            start: {
+                chapter: '序章：西城危局',
+                speaker: '故事背景',
+                text: '孔明分撥已定，先引五千兵去西城縣搬運糧草。\n\n忽然十餘次飛馬報到，說司馬懿引大軍十五萬，望西城蜂擁而來。\n\n時孔明身邊並無大將，只有一班文官；所引五千軍，已分一半先運糧草去了，只剩二千五百軍在城中。\n\n你將接手這場幾乎不可能勝利的心理戰。',
+                bgImage: IMG('西城運糧.png'),
+                charImage: IMG('孔明指揮2.png'),
+                charAlign: 'char-center',
+                ribbon: '目標：讓司馬懿不敢入城',
+                choices: [{ text: '清點敵我兵力', nextScene: 'question1' }]
+            },
+            question1: {
+                chapter: '第一章：算清危局',
+                speaker: '系統提問',
+                text: '軍情十萬火急！司馬懿帶領十五萬大軍，城中蜀軍僅二千五百。敵軍是蜀軍的幾倍？',
+                bgImage: IMG('老弱殘兵.png'),
+                charImage: 'none',
+                choices: [
+                    { text: '(A) 30倍', nextScene: 'bad_end_math_captured', effects: { wisdom: -15, calm: -10 } },
+                    { text: '(B) 60倍', nextScene: 'question2', effects: { wisdom: 10, calm: 4 } },
+                    { text: '(C) 100倍', nextScene: 'bad_end_math', effects: { wisdom: -15, calm: -10 } }
+                ]
+            },
+            bad_end_math: {
+                chapter: '敗局',
+                speaker: '遊戲失敗',
+                text: '你連敵我兵力的懸殊都計算錯誤，防禦佈署出現致命破綻。西城縣瞬間被司馬懿大軍淹沒。',
+                bgImage: IMG('驚慌.png'),
+                charImage: 'none',
+                ending: true,
+                choices: [{ text: '重新挑戰', nextScene: 'restart' }]
+            },
+            bad_end_math_captured: {
+                chapter: '敗局',
+                speaker: '遊戲失敗',
+                text: '你連敵我兵力的懸殊都計算錯誤，防禦佈署出現致命破綻。西城縣瞬間被司馬懿大軍淹沒。',
+                bgImage: IMG('被俘.png'),
+                charImage: 'none',
+                ending: true,
+                choices: [{ text: '重新挑戰', nextScene: 'restart' }]
+            },
+            question2: {
+                chapter: '第一章：算清危局',
+                speaker: '系統提問',
+                text: '正確！兵力差距高達六十倍。再問：孔明原本帶了五千兵去西城縣，為何最後只剩二千五百軍在城中？',
+                bgImage: IMG('蜂擁.png'),
+                charImage: IMG('孔明.png'),
+                charAlign: 'char-left-bottom',
+                choices: [
+                    { text: '(A) 有一半在半路逃跑了', nextScene: 'bad_end_memory', effects: { discipline: -12 } },
+                    { text: '(B) 已分一半先運糧草去了', nextScene: 'hall_scene', effects: { wisdom: 8, discipline: 5 } },
+                    { text: '(C) 分了一半去防守其他城池', nextScene: 'bad_end_memory', effects: { discipline: -12 } }
+                ]
+            },
+            bad_end_memory: {
+                chapter: '敗局',
+                speaker: '遊戲失敗',
+                text: '身為三軍統帥，竟忘記士兵動向。軍令不明、軍心大亂，西城縣失守。',
+                bgImage: IMG('被殺.png'),
+                charImage: 'none',
+                ending: true,
+                choices: [{ text: '重新挑戰', nextScene: 'restart' }]
+            },
+            hall_scene: {
+                chapter: '第二章：廳堂定計',
+                speaker: '旁白',
+                text: '鏡頭一轉，孔明迅速回到西城廳堂。眾官員聽到司馬懿十五萬大軍逼近，個個盡皆失色。\n\n恐慌像火星落入乾草，只要一句話失當，全城就會先被自己擊潰。',
+                bgImage: IMG('西城廳堂.png'),
+                charImage: IMG('眾將失色.png'),
+                charAlign: 'char-right char-hall-shocked',
+                charImage2: IMG('孔明沉穩.png'),
+                char2Align: 'char-left',
+                char2Delay: 900,
+                ribbon: '新機制：選擇會影響四項數值',
+                choices: [{ text: '觀察局勢', nextScene: 'decision_1' }]
+            },
+            decision_1: {
+                chapter: '第二章：廳堂定計',
+                speaker: '孔明心中的盤算',
+                text: '面對極度恐慌的部下與六十倍於己的敵軍，孔明必須先定住人心。\n\n此時此刻，該如何決斷？',
+                bgImage: IMG('西城廳堂.png'),
+                charImage: IMG('眾將失色.png'),
+                charAlign: 'char-right char-hall-shocked',
+                charImage2: IMG('孔明沉穩.png'),
+                char2Align: 'char-left',
+                char2Delay: 900,
+                choices: [
+                    { text: '敵眾我寡，立刻逃跑', nextScene: 'bad_end_escape', effects: { calm: -25, discipline: -10 } },
+                    { text: '緊閉城門，全軍躲藏', nextScene: 'bad_end_hide', effects: { suspicion: -18 } },
+                    { text: '寧死不屈，出城交戰', nextScene: 'bad_end_fight', effects: { calm: -12 } },
+                    { text: '保持鎮定，設法退敵', nextScene: 'decision_2', effects: { wisdom: 8, calm: 10 } }
+                ]
+            },
+            bad_end_escape: {
+                chapter: '敗局',
+                speaker: '遊戲失敗',
+                text: '步兵與文官跑不過十五萬大軍。不到半日，蜀軍全軍覆沒。',
+                bgImage: IMG('被俘.png'),
+                charImage: 'none',
+                ending: true,
+                choices: [{ text: '重新挑戰', nextScene: 'restart' }]
+            },
+            bad_end_hide: {
+                chapter: '敗局',
+                speaker: '遊戲失敗',
+                text: '閉門死守只是坐以待斃。司馬懿見城門緊閉，判斷守軍心虛，立刻攻城。',
+                bgImage: IMG('被殺.png'),
+                charImage: 'none',
+                ending: true,
+                choices: [{ text: '重新挑戰', nextScene: 'restart' }]
+            },
+            bad_end_fight: {
+                chapter: '敗局',
+                speaker: '遊戲失敗',
+                text: '二千五百迎戰十五萬，如螳臂當車。蜀軍將士壯烈犧牲，西城失守。',
+                bgImage: IMG('被殺.png'),
+                charImage: 'none',
+                ending: true,
+                choices: [{ text: '重新挑戰', nextScene: 'restart' }]
+            },
+            decision_2: {
+                chapter: '第二章：廳堂定計',
+                speaker: '孔明心中的盤算',
+                text: '司馬懿生性多疑。若露出一分倉皇，他就會攻；若故作尋常，反倒可能讓他懷疑城中有伏。\n\n接下來，該發布什麼軍令？',
+                bgImage: IMG('西城廳堂.png'),
+                charImage: IMG('眾將失色.png'),
+                charAlign: 'char-right char-hall-shocked',
+                charImage2: IMG('孔明.png'),
+                char2Align: 'char-left-bottom',
+                associationImage: IMG('司馬懿奸邪.png'),
+                associationDelay: 950,
+                choices: [
+                    { text: '在城樓擺滿草人，假裝防守', nextScene: 'bad_end_fake', effects: { wisdom: -16, suspicion: -12 } },
+                    { text: '關閉城門，命士兵躲入民宅', nextScene: 'bad_end_hide', effects: { calm: -10, suspicion: -16 } },
+                    { text: '大開城門，藏匿旌旗，士兵扮百姓掃街', nextScene: 'city_inside_scene', effects: { wisdom: 12, discipline: 8, suspicion: 8 } }
+                ]
+            },
+            bad_end_fake: {
+                chapter: '敗局',
+                speaker: '遊戲失敗',
+                text: '草人看似虛張聲勢，卻剛好提醒司馬懿：城上需要偽裝。斥候一探，空城計當場破局。',
+                bgImage: IMG('被俘.png'),
+                charImage: 'none',
+                ending: true,
+                choices: [{ text: '重新挑戰', nextScene: 'restart' }]
+            },
+            city_inside_scene: {
+                chapter: '第三章：四門佈局',
+                speaker: '旁白',
+                text: '孔明立刻傳令：眾將旌旗盡皆藏匿，諸軍各守城鋪。大開四門，每門二十軍士扮作百姓，灑掃街道。\n\n魏兵到時，不可擅動。',
+                bgImage: IMG('西城城內.png'),
+                charImage: IMG('孔明指揮.png'),
+                charAlign: 'char-center',
+                choices: [{ text: '檢視軍令執行狀況', nextScene: 'question_tactic_1' }]
+            },
+            question_tactic_1: {
+                chapter: '第三章：四門佈局',
+                speaker: '系統提問',
+                text: '根據軍令，東、西、南、北四個城門總共安排多少名士兵扮作百姓掃街？',
+                bgImage: IMG('西城城內.png'),
+                charImage: IMG('孔明指揮.png'),
+                charAlign: 'char-center',
+                choices: [
+                    { text: '(A) 20名', nextScene: 'bad_end_order', effects: { discipline: -18 } },
+                    { text: '(B) 80名', nextScene: 'question_tactic_2', effects: { wisdom: 8, discipline: 8 } },
+                    { text: '(C) 2500名', nextScene: 'bad_end_order', effects: { discipline: -18 } }
+                ]
+            },
+            bad_end_order: {
+                chapter: '敗局',
+                speaker: '遊戲失敗',
+                text: '佈局人數錯誤，掃街偽裝破綻百出。司馬懿的斥候看穿這是一座空城。',
+                bgImage: IMG('被殺.png'),
+                charImage: 'none',
+                ending: true,
+                choices: [{ text: '重新挑戰', nextScene: 'restart' }]
+            },
+            question_tactic_2: {
+                chapter: '第三章：四門佈局',
+                speaker: '系統提問',
+                text: '孔明為何要藏匿旌旗，讓士兵扮百姓掃街，而不是全副武裝站上城牆？',
+                bgImage: IMG('西城城內.png'),
+                charImage: IMG('孔明指揮.png'),
+                charAlign: 'char-center',
+                choices: [
+                    { text: '(A) 蜀軍裝備還沒運到，只能穿便服', nextScene: 'bad_end_logic', effects: { wisdom: -16 } },
+                    { text: '(B) 讓士兵打掃環境，體面投降', nextScene: 'bad_end_logic', effects: { calm: -12 } },
+                    { text: '(C) 利用司馬懿多疑，讓他以為城內有埋伏', nextScene: 'success_plan', effects: { wisdom: 12, suspicion: 10 } }
+                ]
+            },
+            bad_end_logic: {
+                chapter: '敗局',
+                speaker: '遊戲失敗',
+                text: '你誤解了空城計的核心。心理戰若無法貫徹，安靜只會變成心虛。',
+                bgImage: IMG('被俘.png'),
+                charImage: 'none',
+                ending: true,
+                choices: [{ text: '重新挑戰', nextScene: 'restart' }]
+            },
+            success_plan: {
+                chapter: '第四章：城中異變',
+                speaker: '旁白',
+                text: '城內佈置妥當。旗幟收起，城門大開，士兵扮作百姓低頭掃地，整座西城安靜得令人發毛。\n\n然而，孔明準備步上敵樓之時，突生異變。',
+                bgImage: IMG('西城城內.png'),
+                charImage: 'none',
+                ribbon: '警報：城內有不受控因素',
+                choices: [{ text: '發生了什麼事？', nextScene: 'event_disruptive_kid' }]
+            },
+            event_disruptive_kid: {
+                chapter: '第四章：城中異變',
+                speaker: '部將急報',
+                text: '「稟報丞相！城中突然出現一名孩童，正在街道上高聲言語。若被魏軍斥候察覺，恐將看破我軍虛實！」\n\n請問丞相，該如何處置？',
+                bgImage: IMG('西城城內.png'),
+                charImage: IMG('屁孩.png'),
+                charAlign: 'char-kid-feature',
+                charImage2: IMG('孔明.png'),
+                char2Align: 'char-left char-kongming-smaller',
+                choices: [
+                    { text: '忽略無視，別打草驚蛇', nextScene: 'path_ignore', effects: { discipline: -18, suspicion: -12 } },
+                    { text: '將他帶來，問清原因', nextScene: 'path_ask', effects: { calm: -8, discipline: -8, suspicion: -8 } },
+                    { text: '以軍令止亂，立刻控制街面', nextScene: 'kid_whack_game', effects: { discipline: 12, calm: -4, suspicion: 6 } }
+                ]
+            },
+            kid_whack_game: {
+                chapter: '第四章：城中異變',
+                speaker: '街面控制',
+                text: '軍令已下，街面仍有亂象四起。\n\n打中「吵」「狂」，避開「兵」「掃」，在魏軍斥候察覺前壓下騷動。',
+                bgImage: IMG('西城城內.png'),
+                charImage: 'none',
+                whackGame: {
+                    duration: 18,
+                    targetScore: 8,
+                    maxMistakes: 3,
+                    successScene: 'path_control',
+                    failScene: 'bad_end_whack'
+                }
+            },
+            bad_end_whack: {
+                chapter: '敗局',
+                speaker: '遊戲失敗',
+                text: '街面越控越亂，魏軍斥候遠遠看見城中騷動。司馬懿立刻判定空城無伏，下令進兵。',
+                bgImage: IMG('孔明被識破.png'),
+                charImage: 'none',
+                ending: true,
+                choices: [{ text: '重新挑戰', nextScene: 'restart' }]
+            },
+            path_ignore: {
+                chapter: '敗局',
+                speaker: '遊戲失敗',
+                text: '喧嘩聲引起魏軍斥候注意。司馬懿得知城內有人任意走動，斷定防備空虛，立刻下令進兵。',
+                bgImage: IMG('孔明被識破.png'),
+                charImage: 'none',
+                ending: true,
+                choices: [{ text: '重新挑戰', nextScene: 'restart' }]
+            },
+            path_ask: {
+                chapter: '敗局',
+                speaker: '遊戲失敗',
+                text: '派人抓來問話時，城門偽裝陣型大亂。司馬懿遠望見街面躁動，知道城中並無伏兵。',
+                bgImage: IMG('孔明開天窗.png'),
+                charImage: 'none',
+                ending: true,
+                choices: [{ text: '重新挑戰', nextScene: 'restart' }]
+            },
+            path_control: {
+                chapter: '第五章：敵樓操琴',
+                speaker: '旁白',
+                text: '軍令迅速傳下，街面重歸寂靜。孔明披鶴氅，戴綸巾，引二小童，攜琴一張，於城上敵樓前凭欄而坐，焚香操琴。\n\n現在，真正的主角不是兵力，而是司馬懿心中的疑雲。',
+                bgImage: IMG('孔明彈琴.png'),
+                charImage: 'none',
+                choices: [{ text: '觀察司馬懿第一反應', nextScene: 'sima_laugh_probe_question' }]
+            },
+            sima_laugh_probe_question: {
+                chapter: '第五章：敵樓操琴',
+                speaker: '系統提問',
+                text: '剛接到探子的回報，司馬懿原本所採取的態度是：',
+                bgImage: IMG('孔明彈琴.png'),
+                charImage: IMG('司馬懿奸邪.png'),
+                charAlign: 'char-sima-probe',
+                choices: [
+                    { text: '(A) 他認定城中空虛，立刻下令攻城', nextScene: 'bad_end_probe_misread', effects: { wisdom: -14, suspicion: -10 } },
+                    { text: '(B) 他笑而不信，先止住三軍，再親自飛馬遠望', nextScene: 'sima_arrival', effects: { wisdom: 8, suspicion: 6 } },
+                    { text: '(C) 他已確定有埋伏，馬上下令全軍撤退', nextScene: 'bad_end_probe_misread', effects: { wisdom: -12, calm: -8 } }
+                ]
+            },
+            bad_end_probe_misread: {
+                chapter: '敗局',
+                speaker: '遊戲失敗',
+                text: '你誤判了司馬懿的第一反應。此時他不是已經退兵，也不是立刻攻城，而是先止住三軍、親自遠望。\n\n判斷節奏錯亂，城上城下露出破綻，魏軍很快看穿空城。',
+                bgImage: IMG('孔明被識破.png'),
+                charImage: 'none',
+                ending: true,
+                choices: [{ text: '重新挑戰', nextScene: 'restart' }]
+            },
+            sima_arrival: {
+                chapter: '第五章：敵樓操琴',
+                speaker: '司馬懿',
+                text: '十五萬魏軍在城外展開。司馬懿勒馬遠望：城門大開，街上有人掃地，孔明在樓上焚香操琴。\n\n司馬昭低聲問：「父親，蜀軍如此空虛，何不速攻？」',
+                bgImage: IMG('孔明彈琴.png'),
+                charImage: IMG('司馬昭.png'),
+                charAlign: 'char-left-bottom char-sima-zhao',
+                ribbon: '視角切換：司馬懿正在判斷',
+                choices: [{ text: '聽司馬懿如何判斷', nextScene: 'sima_probe' }]
+            },
+            sima_probe: {
+                chapter: '第六章：疑心攻防',
+                speaker: '司馬懿心中',
+                text: '「孔明平生謹慎，不曾弄險。今日城門大開，必有埋伏。」\n\n但司馬懿仍派斥候靠近城門。你要如何維持這場假象？',
+                bgImage: IMG('孔明彈琴.png'),
+                charImage: IMG('司馬懿微怒.png'),
+                charAlign: 'char-sima-probe',
+                choices: [
+                    { text: '令掃街軍士照常低頭，不看魏軍', nextScene: 'probe_result', effects: { discipline: 8, suspicion: 10 } },
+                    { text: '命城上小童停止焚香，避免暴露', nextScene: 'bad_end_tell_captured', effects: { calm: -14, suspicion: -18 } },
+                    { text: '故意讓城內傳出兵器聲，嚇阻斥候', nextScene: 'bad_end_tell_killed', effects: { wisdom: -14, suspicion: -16 } }
+                ]
+            },
+            bad_end_tell_captured: {
+                chapter: '敗局',
+                speaker: '遊戲失敗',
+                text: '空城計最怕「刻意」。司馬懿看見城中反應過度，立刻明白那不是從容，而是遮掩。',
+                bgImage: IMG('被俘.png'),
+                charImage: 'none',
+                ending: true,
+                choices: [{ text: '重新挑戰', nextScene: 'restart' }]
+            },
+            bad_end_tell_killed: {
+                chapter: '敗局',
+                speaker: '遊戲失敗',
+                text: '城內忽然傳出兵器聲，正暴露有人藏軍。司馬懿立刻命前鋒衝入城門，空城計當場破局。',
+                bgImage: IMG('被殺.png'),
+                charImage: 'none',
+                ending: true,
+                choices: [{ text: '重新挑戰', nextScene: 'restart' }]
+            },
+            bad_end_laugh_captured: {
+                chapter: '敗局',
+                speaker: '遊戲失敗',
+                text: '孔明忽然撫琴大笑，反使司馬懿覺得其中有詐而非從容。前鋒一探，城中虛實敗露。',
+                bgImage: IMG('被俘.png'),
+                charImage: 'none',
+                ending: true,
+                choices: [{ text: '重新挑戰', nextScene: 'restart' }]
+            },
+            probe_result: {
+                chapter: '第六章：疑心攻防',
+                speaker: '旁白',
+                text: '斥候靠近城門，只見掃街者面不改色，城樓琴聲不亂。這份平靜反而像一張看不見的網，慢慢收緊司馬懿的判斷。\n\n司馬懿的疑心正在升高。',
+                bgImage: IMG('操琴.png'),
+                charImage: 'none',
+                qinTilesGame: {
+                    duration: 48,
+                    targetScore: 4,
+                    maxMistakes: 4,
+                    laneCount: 5,
+                    targetQueueSize: 3,
+                    targetSpawnDelay: 520,
+                    successScene: 'final_decision',
+                    failScene: 'bad_end_qin_tiles',
+                    successEffects: { suspicion: 10, calm: 6 }
+                }
+            },
+            bad_end_qin_tiles: {
+                chapter: '敗局',
+                speaker: '琴聲失序',
+                text: '落下的字句越接越亂，緊張之語混入琴聲。斥候聽出城樓節奏忽急忽斷，司馬懿也察覺這份平靜並不自然。\n\n疑心未成，破綻已露。',
+                bgImage: IMG('驚慌.png'),
+                charImage: 'none',
+                ending: true,
+                choices: [{ text: '重新挑戰', nextScene: 'restart' }]
+            },
+            final_decision: {
+                chapter: '終章：退兵或破城',
+                speaker: '司馬懿',
+                text: '司馬昭仍不甘心：「父親，只需一支前鋒試探，便知虛實。」\n\n司馬懿看向城樓上的孔明。你要把最後的心理壓力推向哪裡？',
+                bgImage: IMG('孔明彈琴.png'),
+                charImage: IMG('司馬昭.png'),
+                charAlign: 'char-left-bottom char-sima-zhao',
+                choices: [
+                    { text: '孔明撫琴大笑，顯得胸有成竹', nextScene: 'bad_end_laugh_captured', effects: { suspicion: -14, calm: -8 } },
+                    { text: '孔明起身向魏軍喊話，勸其退兵', nextScene: 'bad_end_overplay', effects: { suspicion: -18, wisdom: -10 } },
+                    { text: '孔明沉默操琴，讓司馬懿自己說服自己', nextScene: 'ending_check', effects: { suspicion: 14, wisdom: 6, calm: 6 } }
+                ]
+            },
+            bad_end_overplay: {
+                chapter: '敗局',
+                speaker: '遊戲失敗',
+                text: '一旦開口勸退，就等於承認自己需要對方相信。司馬懿反而確定城中空虛，下令攻城。',
+                bgImage: IMG('被殺.png'),
+                charImage: 'none',
+                ending: true,
+                choices: [{ text: '重新挑戰', nextScene: 'restart' }]
+            },
+            ending_check: {
+                chapter: '終章：結算',
+                speaker: '系統',
+                text: '琴聲收束，風過城門。現在，戰局將依你的智謀、鎮定、軍紀與司馬懿疑心決定。',
+                bgImage: IMG('孔明彈琴.png'),
+                charImage: 'none',
+                choices: [{ text: '故事尾聲', nextScene: 'auto_ending' }]
+            },
+            sima_retreat_order: {
+                chapter: '終章：魏軍退去',
+                speaker: '旁白',
+                text: '司馬懿到中軍，教後軍作前軍，前軍作後軍，望北山路而退。',
+                bgImage: IMG('退兵.png'),
+                charImage: 'none',
+                choices: [{ text: '故事繼續', nextScene: 'xicheng_hall_explain' }]
+            },
+            xicheng_hall_explain: {
+                chapter: '終章：眾官驚服',
+                speaker: '系統提問',
+                text: '眾官無不駭然，乃問孔明曰：「司馬懿乃魏之名將，今統十五萬精兵到此，見了丞相，便速退去，何也？」\n\n孔明的回答是：',
+                bgImage: IMG('西城廳堂.png'),
+                charImage: IMG('孔明沉穩.png'),
+                charAlign: 'char-left-bottom',
+                charImage2: IMG('驚服.png'),
+                char2Align: 'char-right char-hall-shocked',
+                choices: [
+                    { text: '此人料吾平生謹慎，必不弄險，見如此模樣，疑有伏兵，所以退去。吾非行險，蓋因不得已而用之。', nextScene: 'north_route_quote', effects: { wisdom: 8, suspicion: 4 } },
+                    { text: '司馬懿兵少將寡，見我城上撫琴，所以自知不敵而退。', nextScene: 'bad_end_hall_answer', effects: { wisdom: -12, calm: -8 } },
+                    { text: '魏軍糧草已盡，不能久圍西城，因此只好撤走。', nextScene: 'bad_end_hall_answer', effects: { wisdom: -10, suspicion: -8 } }
+                ]
+            },
+            bad_end_hall_answer: {
+                chapter: '敗局',
+                speaker: '遊戲失敗',
+                text: '眾官問的是司馬懿為何速退，關鍵不在兵力或糧草，而在他對孔明「平生謹慎」的判斷。答錯此處，司馬懿來個回馬槍，西城淪陷。',
+                bgImage: IMG('驚慌.png'),
+                charImage: 'none',
+                ending: true,
+                choices: [{ text: '重新挑戰', nextScene: 'restart' }]
+            },
+            north_route_quote: {
+                chapter: '終章：北山伏兵',
+                speaker: '孔明',
+                text: '孔明又曰：「此人必引軍投——去也。吾已令——人在彼等候」\n\n將軍們應該如何戰場布局？',
+                bgImage: IMG('西城廳堂.png'),
+                charImage: 'none',
+                routePlanGame: {
+                    successScene: 'xicheng_hall_final',
+                    failScene: 'bad_end_route_plan',
+                    successEffects: { wisdom: 8, discipline: 6 }
+                }
+            },
+            bad_end_route_plan: {
+                chapter: '敗局',
+                speaker: '遊戲失敗',
+                text: '伏兵若放在街亭或漢中附近，便攔不到司馬懿北山退路。軍令一亂，廳堂眾人復又驚慌。',
+                bgImage: IMG('驚慌.png'),
+                charImage: 'none',
+                ending: true,
+                choices: [{ text: '重新挑戰', nextScene: 'restart' }]
+            },
+            xicheng_hall_final: {
+                chapter: '終章：眾官驚服',
+                speaker: '西城廳堂',
+                text: '孔明曰：「吾已令興、苞二人在彼等候。」\n\n眾皆驚服，曰：「丞相玄機，神鬼莫測。若某等之見，必棄城而走矣。」\n\n孔明曰：「吾兵止有二千五百，若棄城而走，必不能遠遁。得不為司馬懿所擒乎？」\n\n言訖，拍手大笑，曰：「吾若為司馬懿，必不便退也。」',
+                bgImage: IMG('西城廳堂.png'),
+                charImage: IMG('孔明大笑.png'),
+                charAlign: 'char-left-bottom',
+                charImage2: IMG('驚服.png'),
+                char2Align: 'char-right char-hall-shocked',
+                ending: true,
+                choices: [{ text: '完成遊戲', nextScene: 'victory_celebration' }]
+            },
+            victory_celebration: {
+                chapter: '通關',
+                speaker: '空城計',
+                text: '魏軍遠去，孔明及蜀軍離開西城，退回漢中，一切無虞，靜待下次北伐。',
+                bgImage: IMG('撤軍.png'),
+                charImage: 'none',
+                ending: true,
+                victoryCelebration: true,
+                choices: [{ text: '再玩一次', nextScene: 'restart' }]
+            }
+        };
+
+        const bgLayer = document.getElementById('bg-layer');
+        const charLayer = document.getElementById('character-layer');
+        const charLayer2 = document.getElementById('character-layer-2');
+        const speakerName = document.getElementById('speaker-name');
+        const dialogueText = document.getElementById('dialogue-text');
+        const choicesContainer = document.getElementById('choices-container');
+        const chapterTitle = document.getElementById('chapter-title');
+        const eventRibbon = document.getElementById('event-ribbon');
+        const associationBox = document.getElementById('association-box');
+        const stageGameLayer = document.getElementById('stage-game-layer');
+        const restartBtn = document.getElementById('restart-btn');
+        const titleScreen = document.getElementById('title-screen');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const openingVideoScreen = document.getElementById('opening-video-screen');
+        const openingVideo = document.getElementById('opening-video');
+        const playOpeningBtn = document.getElementById('play-opening-btn');
+        const skipOpeningBtn = document.getElementById('skip-opening-btn');
+        const gameMusic = document.getElementById('game-music');
+        const gameContainer = document.getElementById('game-container');
+        const openingRestartBtn = document.getElementById('opening-restart-btn');
+
+        let currentSceneId = 'start';
+        let stats = { ...initialStats };
+        let choiceHistory = [];
+        let rewindUsed = false;
+        let typeWriterInterval;
+        let characterTimeouts = [];
+        let associationTimeout;
+        let whackState = null;
+        let whackTimers = [];
+        let qinState = null;
+        let qinTimers = [];
+        let qinAnimationFrame = null;
+        let shouldResumeMusicAfterQin = false;
+        let routeState = null;
+        let gameHasBegun = false;
+        let activeText = '';
+        let typingDone = false;
+        let typingAudioContext;
+        let lastTypingSoundAt = 0;
+        let lastWhackPopAt = 0;
+
+        const qinIdioms = {
+            calm: ['面不改色', '從容不迫', '神態自若', '鎮定自若', '心如止水', '不慌不忙', '悠然自得', '從容安閒'],
+            tense: ['心慌意亂', '手忙腳亂', '心急如焚', '六神無主', '焦頭爛額', '驚惶失措', '坐立不安', '手足無措']
+        };
+
+        const qinMelody = [392, 440, 523, 587, 523, 440, 392, 330, 392, 440, 494, 587, 523, 494, 440, 392];
+
+        const clamp = (value) => Math.max(0, Math.min(100, value));
+
+        function ensureTypingAudio() {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass) return null;
+
+            if (!typingAudioContext) {
+                typingAudioContext = new AudioContextClass();
+            }
+
+            if (typingAudioContext.state === 'suspended') {
+                typingAudioContext.resume().catch(() => {});
+            }
+
+            return typingAudioContext;
+        }
+
+        function playTypingSound() {
+            const audioContext = ensureTypingAudio();
+            if (!audioContext || audioContext.state === 'closed') return;
+
+            const now = audioContext.currentTime;
+            if (now - lastTypingSoundAt < 0.045) return;
+            lastTypingSoundAt = now;
+
+            const oscillator = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+
+            oscillator.type = 'square';
+            oscillator.frequency.setValueAtTime(560 + Math.random() * 220, now);
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.exponentialRampToValueAtTime(0.025, now + 0.004);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.035);
+
+            oscillator.connect(gain);
+            gain.connect(audioContext.destination);
+            oscillator.start(now);
+            oscillator.stop(now + 0.04);
+        }
+
+        function playWhackSound(kind) {
+            const audioContext = ensureTypingAudio();
+            if (!audioContext || audioContext.state === 'closed') return;
+
+            const now = audioContext.currentTime;
+            if (kind === 'pop') {
+                if (now - lastWhackPopAt < 0.12) return;
+                lastWhackPopAt = now;
+            }
+
+            const soundMap = {
+                pop: [
+                    { frequency: 430, delay: 0, duration: 0.045, volume: 0.018, type: 'triangle' }
+                ],
+                hit: [
+                    { frequency: 1046, delay: 0, duration: 0.055, volume: 0.075, type: 'triangle' },
+                    { frequency: 1568, delay: 0.04, duration: 0.07, volume: 0.055, type: 'sine' }
+                ],
+                wrong: [
+                    { frequency: 190, delay: 0, duration: 0.12, volume: 0.04, type: 'sawtooth' },
+                    { frequency: 130, delay: 0.09, duration: 0.16, volume: 0.035, type: 'sawtooth' }
+                ],
+                success: [
+                    { frequency: 523, delay: 0, duration: 0.12, volume: 0.05, type: 'triangle' },
+                    { frequency: 659, delay: 0.1, duration: 0.12, volume: 0.05, type: 'triangle' },
+                    { frequency: 784, delay: 0.2, duration: 0.18, volume: 0.055, type: 'triangle' }
+                ],
+                fail: [
+                    { frequency: 220, delay: 0, duration: 0.16, volume: 0.045, type: 'sawtooth' },
+                    { frequency: 146, delay: 0.13, duration: 0.2, volume: 0.04, type: 'sawtooth' }
+                ]
+            };
+
+            (soundMap[kind] || []).forEach((note) => {
+                const startAt = now + note.delay;
+                const oscillator = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+
+                oscillator.type = note.type;
+                oscillator.frequency.setValueAtTime(note.frequency, startAt);
+                gain.gain.setValueAtTime(0.0001, startAt);
+                gain.gain.exponentialRampToValueAtTime(note.volume, startAt + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.0001, startAt + note.duration);
+
+                oscillator.connect(gain);
+                gain.connect(audioContext.destination);
+                oscillator.start(startAt);
+                oscillator.stop(startAt + note.duration + 0.02);
+            });
+        }
+
+        function playRoutePlacedSound() {
+            const audioContext = ensureTypingAudio();
+            if (!audioContext || audioContext.state === 'closed') return;
+
+            const now = audioContext.currentTime;
+            [523, 659, 784].forEach((frequency, index) => {
+                const startAt = now + index * 0.055;
+                const oscillator = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+
+                oscillator.type = 'triangle';
+                oscillator.frequency.setValueAtTime(frequency, startAt);
+                gain.gain.setValueAtTime(0.0001, startAt);
+                gain.gain.exponentialRampToValueAtTime(0.072, startAt + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.16);
+                oscillator.connect(gain);
+                gain.connect(audioContext.destination);
+                oscillator.start(startAt);
+                oscillator.stop(startAt + 0.18);
+            });
+        }
+
+        function playQinNote(frequency, delay = 0, volume = 0.042, duration = 0.95) {
+            const audioContext = ensureTypingAudio();
+            if (!audioContext || audioContext.state === 'closed') return;
+
+            const startAt = audioContext.currentTime + delay;
+            const oscillator = audioContext.createOscillator();
+            const overtone = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            const filter = audioContext.createBiquadFilter();
+
+            oscillator.type = 'triangle';
+            overtone.type = 'sine';
+            oscillator.frequency.setValueAtTime(frequency * 1.008, startAt);
+            oscillator.frequency.linearRampToValueAtTime(frequency, startAt + 0.08);
+            overtone.frequency.setValueAtTime(frequency * 2.01, startAt);
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1800, startAt);
+            filter.frequency.exponentialRampToValueAtTime(720, startAt + duration);
+            gain.gain.setValueAtTime(0.0001, startAt);
+            gain.gain.exponentialRampToValueAtTime(volume, startAt + 0.012);
+            gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+
+            oscillator.connect(gain);
+            overtone.connect(gain);
+            gain.connect(filter);
+            filter.connect(audioContext.destination);
+            oscillator.start(startAt);
+            overtone.start(startAt);
+            oscillator.stop(startAt + duration + 0.04);
+            overtone.stop(startAt + duration + 0.04);
+        }
+
+        function playQinMelodyTick() {
+            if (!qinState || qinState.locked) return;
+
+            const frequency = qinMelody[qinState.melodyIndex % qinMelody.length];
+            qinState.melodyIndex += 1;
+            playQinNote(frequency, 0, 0.026, 1.15);
+            if (qinState.melodyIndex % 4 === 0) {
+                playQinNote(frequency * 0.5, 0.02, 0.014, 1.45);
+            }
+        }
+
+        function playQinCatchSound(step) {
+            const scale = [392, 440, 523, 587];
+            playQinNote(scale[step % scale.length], 0, 0.05, 0.72);
+        }
+
+        function playQinCorrectSparkSound(step) {
+            const scale = [392, 440, 523, 587, 659, 784, 880];
+            const root = scale[step % scale.length];
+            playQinNote(root, 0, 0.054, 0.62);
+            playQinNote(root * 1.5, 0.035, 0.024, 0.38);
+            playQinNote(root * 2, 0.07, 0.016, 0.28);
+        }
+
+        function playQinMistakeSound() {
+            playQinNote(196, 0, 0.038, 0.36);
+            playQinNote(185, 0.07, 0.025, 0.42);
+        }
+
+        function playQinCadence(success) {
+            const notes = success ? [392, 440, 523, 587, 659] : [330, 294, 247];
+            notes.forEach((frequency, index) => {
+                playQinNote(frequency, index * 0.13, success ? 0.048 : 0.04, success ? 0.9 : 0.5);
+            });
+        }
+
+        function playVictorySound() {
+            const audioContext = ensureTypingAudio();
+            if (!audioContext || audioContext.state === 'closed') return;
+
+            const now = audioContext.currentTime;
+            const notes = [523, 659, 784, 1046, 784, 1046, 1318];
+            notes.forEach((frequency, index) => {
+                const startAt = now + index * 0.11;
+                const oscillator = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+
+                oscillator.type = index > 4 ? 'square' : 'triangle';
+                oscillator.frequency.setValueAtTime(frequency, startAt);
+                gain.gain.setValueAtTime(0.0001, startAt);
+                gain.gain.exponentialRampToValueAtTime(0.06, startAt + 0.012);
+                gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.34);
+                oscillator.connect(gain);
+                gain.connect(audioContext.destination);
+                oscillator.start(startAt);
+                oscillator.stop(startAt + 0.38);
+            });
+        }
+
+        function shouldPlayTypingSound(scene) {
+            return scene.speaker === '系統提問';
+        }
+
+        function saveGame() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ currentSceneId, stats, choiceHistory, rewindUsed }));
+        }
+
+        function loadGame() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+                if (saved && storyData[saved.currentSceneId]) {
+                    currentSceneId = saved.currentSceneId;
+                    stats = { ...initialStats, ...saved.stats };
+                    choiceHistory = Array.isArray(saved.choiceHistory) ? saved.choiceHistory : [];
+                    rewindUsed = Boolean(saved.rewindUsed);
+                }
+            } catch (error) {
+                localStorage.removeItem(STORAGE_KEY);
+            }
+        }
+
+        function resetGame() {
+            gameHasBegun = true;
+            openingVideo.pause();
+            openingVideoScreen.classList.remove('is-active');
+            titleScreen.classList.add('hide');
+            gameContainer.classList.remove('is-hidden');
+            openingRestartBtn.classList.remove('is-visible');
+            startGameMusic(true);
+            localStorage.removeItem(STORAGE_KEY);
+            currentSceneId = 'start';
+            stats = { ...initialStats };
+            choiceHistory = [];
+            rewindUsed = false;
+            loadScene(currentSceneId);
+        }
+
+        function startGameMusic(restart = false) {
+            if (restart) {
+                gameMusic.currentTime = 0;
+            }
+            gameMusic.volume = 0.6;
+            const musicPlay = gameMusic.play();
+            if (musicPlay) {
+                musicPlay.catch(() => {});
+            }
+        }
+
+        function stopGameMusic() {
+            gameMusic.pause();
+            gameMusic.currentTime = 0;
+        }
+
+        function pauseGameMusicForQinGame() {
+            shouldResumeMusicAfterQin = !gameMusic.paused && !gameMusic.ended;
+            if (shouldResumeMusicAfterQin) {
+                gameMusic.pause();
+            }
+        }
+
+        function resumeGameMusicAfterQinGame() {
+            if (!shouldResumeMusicAfterQin) return;
+
+            shouldResumeMusicAfterQin = false;
+            gameMusic.volume = 0.6;
+            const musicPlay = gameMusic.play();
+            if (musicPlay) {
+                musicPlay.catch(() => {});
+            }
+        }
+
+        function applyEffects(effects = {}) {
+            Object.entries(effects).forEach(([key, value]) => {
+                stats[key] = clamp((stats[key] ?? 50) + value);
+            });
+            updateStats();
+        }
+
+        function updateStats() {
+            const statMap = [
+                ['wisdom', 'wisdom-value', 'wisdom-meter'],
+                ['calm', 'calm-value', 'calm-meter'],
+                ['discipline', 'discipline-value', 'discipline-meter'],
+                ['suspicion', 'suspicion-value', 'suspicion-meter']
+            ];
+
+            statMap.forEach(([key, valueId, meterId]) => {
+                document.getElementById(valueId).textContent = stats[key];
+                document.getElementById(meterId).style.width = `${stats[key]}%`;
+            });
+        }
+
+        function chooseEnding() {
+            if (stats.wisdom >= 75 && stats.calm >= 62 && stats.discipline >= 65 && stats.suspicion >= 76) {
+                return 'ending_great';
+            }
+
+            if (stats.suspicion >= 66 && stats.discipline >= 55) {
+                return 'ending_success';
+            }
+
+            if (stats.suspicion >= 58 && stats.calm >= 48) {
+                return 'ending_costly';
+            }
+
+            return 'ending_fail_final';
+        }
+
+        function buildEndingScene(id) {
+            const endings = {
+                ending_great: {
+                    chapter: '完美結局',
+                    speaker: '大勝：疑兵退魏',
+                    text: `司馬懿越看越驚，終於下令：「孔明平生謹慎，必不弄險。此中必有伏兵，速退！」`,
+                    bgImage: IMG('孔明彈琴.png'),
+                    charImage: IMG('司馬懿微怒.png'),
+                    charAlign: 'char-sima-probe',
+                    charImage2: IMG('司馬昭.png'),
+                    char2Align: 'char-left-bottom char-sima-zhao',
+                    choices: [{ text: '故事繼續', nextScene: 'sima_retreat_order' }]
+                },
+                ending_success: {
+                    chapter: '成功結局',
+                    speaker: '勝利：司馬懿退兵',
+                    text: `司馬懿反覆權衡，終究不敢冒進，下令退兵。西城保住了，但城內眾人仍心有餘悸。\n\n評語：你的決策足以完成空城計，只是過程中仍有幾處風險。若能更穩定軍紀與鎮定，結局會更漂亮。`,
+                    bgImage: IMG('孔明彈琴.png'),
+                    charImage: IMG('孔明操琴.png'),
+                    charAlign: 'char-center',
+                    charImage2: IMG('孔明大笑.png'),
+                    char2Align: 'char-left-bottom',
+                    ending: true,
+                    choices: [{ text: '再玩一次', nextScene: 'restart' }]
+                },
+                ending_costly: {
+                    chapter: '險勝結局',
+                    speaker: '險勝：疑雲未散',
+                    text: `司馬懿暫時退兵，卻留下斥候監視西城。孔明趁夜撤走，西城沒有陷落，但這是一場驚險的逃生。\n\n評語：你成功撐過最危急的一刻，不過疑心與紀律都差了一點，勝利帶著冷汗。`,
+                    bgImage: IMG('西城空無一人.png'),
+                    charImage: IMG('孔明沉穩.png'),
+                    charAlign: 'char-center',
+                    charImage2: IMG('孔明大笑.png'),
+                    char2Align: 'char-left-bottom',
+                    ending: true,
+                    choices: [{ text: '再玩一次', nextScene: 'restart' }]
+                },
+                ending_fail_final: {
+                    chapter: '失敗結局',
+                    speaker: '敗局：一念攻城',
+                    text: `司馬懿的疑心不足以壓過戰機。他派前鋒試探，城內虛實立刻暴露。\n\n空城計只差一步，卻差在那一步。`,
+                    bgImage: IMG('被殺.png'),
+                    charImage: 'none',
+                    ending: true,
+                    choices: [{ text: '重新挑戰', nextScene: 'restart' }]
+                }
+            };
+
+            return endings[id];
+        }
+
+        function getScene(sceneId) {
+            if (sceneId === 'auto_ending') {
+                return buildEndingScene(chooseEnding());
+            }
+            return storyData[sceneId];
+        }
+
+        function loadScene(sceneId) {
+            if (sceneId === 'restart') {
+                resetGame();
+                return;
+            }
+
+            const scene = getScene(sceneId);
+            if (!scene) return;
+
+            currentSceneId = sceneId;
+            saveGame();
+
+            choicesContainer.innerHTML = '';
+            clearInterval(typeWriterInterval);
+            clearCharacterTimeouts();
+            clearTimeout(associationTimeout);
+            clearWhackGame();
+            clearQinTilesGame();
+            clearRoutePlanGame();
+            dialogueText.innerHTML = '';
+            activeText = scene.text;
+            typingDone = false;
+
+            chapterTitle.textContent = scene.chapter || '空城計';
+            speakerName.textContent = scene.speaker;
+            bgLayer.style.backgroundImage = scene.bgImage;
+            bgLayer.style.filter = scene.ending ? 'saturate(0.9)' : 'none';
+            if (scene.ending) {
+                stopGameMusic();
+            }
+            openingRestartBtn.classList.toggle('is-visible', Boolean(scene.ending));
+
+            eventRibbon.textContent = scene.ribbon || '';
+            eventRibbon.classList.toggle('show', Boolean(scene.ribbon));
+            setAssociation(scene.associationImage, scene.associationDelay);
+
+            setCharacter(charLayer, scene.charImage, scene.charAlign || 'char-center');
+            setCharacter(charLayer2, scene.charImage2, scene.char2Align || 'char-left', scene.char2Delay);
+
+            updateStats();
+            typeWriterEffect(scene.text, () => renderSceneAction(scene), shouldPlayTypingSound(scene));
+        }
+
+        function renderSceneAction(scene) {
+            if (scene.whackGame) {
+                renderWhackGame(scene);
+                return;
+            }
+
+            if (scene.qinTilesGame) {
+                renderQinTilesGame(scene);
+                return;
+            }
+
+            if (scene.routePlanGame) {
+                renderRoutePlanGame(scene);
+                return;
+            }
+
+            if (scene.victoryCelebration) {
+                renderVictoryCelebration(scene);
+                return;
+            }
+
+            renderChoices(scene);
+        }
+
+        function clearCharacterTimeouts() {
+            characterTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
+            characterTimeouts = [];
+        }
+
+        function setCharacter(layer, image, align, delay = 0) {
+            layer.className = 'character';
+            layer.style.backgroundImage = 'none';
+
+            if (!image || image === 'none') return;
+
+            layer.style.backgroundImage = image;
+            align.split(' ').forEach((className) => layer.classList.add(className));
+            const timeoutId = setTimeout(() => layer.classList.add('show'), delay || 50);
+            characterTimeouts.push(timeoutId);
+        }
+
+        function setAssociation(image, delay = 120) {
+            associationBox.classList.remove('show');
+            associationBox.style.backgroundImage = 'none';
+
+            if (!image || image === 'none') return;
+
+            associationBox.style.backgroundImage = image;
+            associationTimeout = setTimeout(() => associationBox.classList.add('show'), delay);
+        }
+
+        function clearWhackGame() {
+            whackTimers.forEach((timer) => {
+                if (timer.type === 'interval') {
+                    clearInterval(timer.id);
+                } else {
+                    clearTimeout(timer.id);
+                }
+            });
+            whackTimers = [];
+            whackState = null;
+            stageGameLayer.innerHTML = '';
+            stageGameLayer.classList.remove('is-active');
+            gameContainer.classList.remove('is-whack-scene');
+        }
+
+        function trackWhackTimeout(callback, delay) {
+            const id = setTimeout(callback, delay);
+            whackTimers.push({ id, type: 'timeout' });
+            return id;
+        }
+
+        function trackWhackInterval(callback, delay) {
+            const id = setInterval(callback, delay);
+            whackTimers.push({ id, type: 'interval' });
+            return id;
+        }
+
+        function clearQinTilesGame() {
+            resumeGameMusicAfterQinGame();
+            qinTimers.forEach((timer) => {
+                if (timer.type === 'interval') {
+                    clearInterval(timer.id);
+                } else {
+                    clearTimeout(timer.id);
+                }
+            });
+            qinTimers = [];
+            if (qinAnimationFrame) {
+                cancelAnimationFrame(qinAnimationFrame);
+                qinAnimationFrame = null;
+            }
+            qinState = null;
+            stageGameLayer.innerHTML = '';
+            stageGameLayer.classList.remove('is-active');
+            gameContainer.classList.remove('is-qin-scene');
+        }
+
+        function trackQinTimeout(callback, delay) {
+            const id = setTimeout(callback, delay);
+            qinTimers.push({ id, type: 'timeout' });
+            return id;
+        }
+
+        function trackQinInterval(callback, delay) {
+            const id = setInterval(callback, delay);
+            qinTimers.push({ id, type: 'interval' });
+            return id;
+        }
+
+        function clearRoutePlanGame() {
+            routeState = null;
+            gameContainer.classList.remove('is-route-scene');
+        }
+
+        function renderRoutePlanGame(scene) {
+            const config = {
+                successScene: 'xicheng_hall_final',
+                failScene: 'bad_end_route_plan',
+                successEffects: {},
+                ...scene.routePlanGame
+            };
+
+            routeState = {
+                successScene: config.successScene,
+                failScene: config.failScene,
+                successEffects: config.successEffects,
+                locked: false,
+                placed: new Set()
+            };
+
+            choicesContainer.innerHTML = '';
+            stageGameLayer.innerHTML = '';
+            stageGameLayer.classList.add('is-active');
+            gameContainer.classList.add('is-route-scene');
+
+            const panel = document.createElement('div');
+            panel.className = 'route-panel';
+            panel.innerHTML = `
+                <div class="route-map" aria-label="西城北山地形圖">
+                    <svg class="route-paths" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                        <path d="M49 59 C46 47 45 34 43 15" fill="none" stroke="rgba(255,247,214,0.9)" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="5 4"/>
+                        <path d="M49 59 C62 49 72 39 78 24" fill="none" stroke="rgba(255,247,214,0.66)" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 4"/>
+                        <path d="M49 59 C44 70 39 78 34 91" fill="none" stroke="rgba(255,247,214,0.66)" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 4"/>
+                        <path d="M35 30 C42 25 50 25 57 30" fill="none" stroke="rgba(15,23,42,0.62)" stroke-width="5" stroke-linecap="round"/>
+                        <path d="M29 40 C40 35 56 35 67 41" fill="none" stroke="rgba(15,23,42,0.48)" stroke-width="4" stroke-linecap="round"/>
+                    </svg>
+                    <div class="route-label" style="left: 8%; top: 7%;">秦嶺 / 魏國地盤</div>
+                    <div class="route-label" style="left: 33%; top: 29%;">北山小路</div>
+                    <div class="route-city" style="left: 43%; top: 55%;">西城</div>
+                    <div class="route-city" style="right: 8%; top: 18%;">街亭</div>
+                    <div class="route-city" style="left: 24%; bottom: 6%;">漢中</div>
+                    <div class="route-zone is-valid" data-zone="north-left" style="left: 25%; top: 31%;">北山左伏</div>
+                    <div class="route-zone is-valid" data-zone="north-right" style="right: 31%; top: 32%;">北山右伏</div>
+                    <div class="route-zone is-invalid" data-zone="jieting-left" style="right: 24%; top: 6%;">街亭左側</div>
+                    <div class="route-zone is-invalid" data-zone="jieting-right" style="right: 3%; top: 36%;">街亭右側</div>
+                    <div class="route-zone is-invalid" data-zone="hanzhong-left" style="left: 6%; bottom: 12%;">漢中左側</div>
+                    <div class="route-zone is-invalid" data-zone="hanzhong-right" style="left: 44%; bottom: 2%;">漢中右側</div>
+                </div>
+                <div class="route-roster">
+                    <div class="route-roster-title">將軍名牌</div>
+                    ${['關興', '張苞', '張飛', '關羽', '魏延'].map((name) => `<button class="route-token" type="button" draggable="true" data-general="${name}">${name}</button>`).join('')}
+                    <div class="route-message" id="route-message">拖到北山小路兩側。</div>
+                </div>
+            `;
+
+            stageGameLayer.appendChild(panel);
+
+            panel.querySelectorAll('.route-token').forEach((token) => {
+                token.addEventListener('dragstart', (event) => {
+                    if (routeState.locked || token.classList.contains('is-placed')) {
+                        event.preventDefault();
+                        return;
+                    }
+                    event.dataTransfer.setData('text/plain', token.dataset.general);
+                });
+                token.addEventListener('click', () => updateRouteMessage(`拖曳「${token.dataset.general}」到北山小路左右側靠山處。`));
+            });
+
+            panel.querySelectorAll('.route-zone').forEach((zone) => {
+                zone.addEventListener('dragover', (event) => {
+                    event.preventDefault();
+                    zone.classList.add('is-hovered');
+                });
+                zone.addEventListener('dragleave', () => zone.classList.remove('is-hovered'));
+                zone.addEventListener('drop', (event) => {
+                    event.preventDefault();
+                    zone.classList.remove('is-hovered');
+                    handleRouteDrop(event.dataTransfer.getData('text/plain'), zone);
+                });
+            });
+        }
+
+        function handleRouteDrop(general, zone) {
+            if (!routeState || routeState.locked || !general) return;
+
+            const validGenerals = new Set(['關興', '張苞']);
+            if (!zone.classList.contains('is-valid') || !validGenerals.has(general)) {
+                finishRoutePlanGame(false, '伏兵位置錯了，北山退路攔不住。');
+                return;
+            }
+
+            if (zone.dataset.general || routeState.placed.has(general)) return;
+
+            zone.dataset.general = general;
+            zone.textContent = general;
+            zone.classList.add('is-placed');
+            routeState.placed.add(general);
+            playRoutePlacedSound();
+            const token = document.querySelector(`.route-token[data-general="${general}"]`);
+            if (token) token.classList.add('is-placed');
+
+            updateRouteMessage(routeState.placed.size >= 2 ? '北山伏兵已定。' : '再派一將守另一側。');
+            if (routeState.placed.size >= 2) {
+                finishRoutePlanGame(true, '關興、張苞分伏北山小路兩側。');
+            }
+        }
+
+        function updateRouteMessage(message) {
+            const messageNode = document.getElementById('route-message');
+            if (messageNode) messageNode.textContent = message;
+        }
+
+        function finishRoutePlanGame(success, message) {
+            if (!routeState || routeState.locked) return;
+
+            routeState.locked = true;
+            updateRouteMessage(message);
+            const nextScene = success ? routeState.successScene : routeState.failScene;
+            if (success) {
+                applyEffects(routeState.successEffects);
+            }
+            setTimeout(() => loadScene(nextScene), success ? 720 : 620);
+        }
+
+        function renderVictoryCelebration(scene) {
+            choicesContainer.innerHTML = '';
+            stageGameLayer.innerHTML = '';
+            stageGameLayer.classList.add('is-active');
+
+            const celebration = document.createElement('div');
+            celebration.className = 'victory-celebration';
+            celebration.innerHTML = `
+                <div class="firework"></div>
+                <div class="firework"></div>
+                <div class="firework"></div>
+                <div class="firework"></div>
+                <div class="victory-plaque">恭喜過關</div>
+            `;
+            stageGameLayer.appendChild(celebration);
+            playVictorySound();
+
+            setTimeout(() => renderChoices(scene), 900);
+        }
+
+        function renderQinTilesGame(scene) {
+            ensureTypingAudio();
+            pauseGameMusicForQinGame();
+            const config = {
+                duration: 48,
+                targetScore: 4,
+                maxMistakes: 4,
+                laneCount: 5,
+                targetQueueSize: 3,
+                targetSpawnDelay: 520,
+                successScene: 'final_decision',
+                failScene: 'bad_end_qin_tiles',
+                successEffects: {},
+                ...scene.qinTilesGame
+            };
+            config.laneCount = Math.max(1, Math.floor(Number(config.laneCount) || 5));
+            config.targetScore = Math.min(qinIdioms.calm.length, Math.max(1, Math.floor(Number(config.targetScore) || 4)));
+            config.targetQueueSize = Math.min(config.laneCount, Math.max(1, Math.floor(Number(config.targetQueueSize) || 1)));
+            const qinLaneMarkup = Array.from({ length: config.laneCount }, () => '<div class="qin-lane"></div>').join('');
+
+            qinState = {
+                completed: 0,
+                mistakes: 0,
+                timeLeft: config.duration,
+                targetScore: config.targetScore,
+                maxMistakes: config.maxMistakes,
+                successScene: config.successScene,
+                failScene: config.failScene,
+                successEffects: config.successEffects,
+                targetPhrase: '',
+                targetIndex: 0,
+                nextTargetIndex: 0,
+                targetLaneOrder: [],
+                targetQueueSize: config.targetQueueSize,
+                targetSpawnDelay: config.targetSpawnDelay,
+                lastTargetSpawnAt: 0,
+                lastPhrase: '',
+                completedPhrases: [],
+                laneCount: config.laneCount,
+                tiles: [],
+                nextTileId: 1,
+                locked: false,
+                lastFrameAt: 0,
+                melodyIndex: 0,
+                track: null
+            };
+
+            choicesContainer.innerHTML = '';
+            stageGameLayer.innerHTML = '';
+            stageGameLayer.classList.add('is-active');
+            gameContainer.classList.add('is-qin-scene');
+
+            const panel = document.createElement('div');
+            panel.className = 'qin-panel';
+            panel.innerHTML = `
+                <div class="qin-status">
+                    <div class="qin-stat">完成<strong id="qin-score">0/${config.targetScore}</strong></div>
+                    <div class="qin-stat">時間<strong id="qin-time">${config.duration}</strong></div>
+                    <div class="qin-stat">失誤<strong id="qin-mistakes">0/${config.maxMistakes}</strong></div>
+                    <div class="qin-target">
+                        <span>接住這個自在成語，避開緊張字</span>
+                        <strong id="qin-target-phrase"></strong>
+                    </div>
+                </div>
+                <div class="qin-track" aria-label="落字成語琴鍵">
+                    ${qinLaneMarkup}
+                    <div class="qin-catcher"><span id="qin-catcher-hint">準備接字</span></div>
+                </div>
+                <div class="qin-message" id="qin-message">琴聲已起。</div>
+            `;
+
+            stageGameLayer.appendChild(panel);
+            qinState.track = panel.querySelector('.qin-track');
+            chooseNextQinPhrase();
+            updateQinHud();
+
+            trackQinInterval(() => {
+                if (!qinState || qinState.locked) return;
+                qinState.timeLeft -= 1;
+                updateQinHud();
+                if (qinState.timeLeft <= 0) {
+                    finishQinTilesGame(false, '琴聲未能守住完整章法。');
+                }
+            }, 1000);
+
+            trackQinInterval(() => fillQinTargetQueue(), 440);
+            trackQinInterval(() => spawnQinDecoy(), 980);
+            playQinMelodyTick();
+            trackQinInterval(() => playQinMelodyTick(), 430);
+            qinAnimationFrame = requestAnimationFrame(animateQinTiles);
+        }
+
+        function chooseNextQinPhrase() {
+            if (!qinState || qinState.locked) return;
+
+            let choices = qinIdioms.calm.filter((phrase) => (
+                phrase !== qinState.lastPhrase
+                && !qinState.completedPhrases.includes(phrase)
+            ));
+            if (!choices.length) {
+                choices = qinIdioms.calm.filter((phrase) => phrase !== qinState.lastPhrase);
+            }
+            const phrase = choices[Math.floor(Math.random() * choices.length)];
+            qinState.targetPhrase = phrase;
+            qinState.lastPhrase = phrase;
+            qinState.targetIndex = 0;
+            qinState.nextTargetIndex = 0;
+            qinState.targetQueueSize = Math.min(qinState.laneCount, phrase.length, 3);
+            qinState.targetLaneOrder = makeQinTargetLaneOrder(phrase.length);
+            qinState.lastTargetSpawnAt = Date.now();
+            updateQinHud();
+            updateQinMessage(`接住「${phrase}」。`);
+            trackQinTimeout(() => fillQinTargetQueue(), qinState.targetSpawnDelay);
+        }
+
+        function makeQinShuffledIndices(length) {
+            const order = Array.from({ length }, (_, index) => index);
+
+            for (let i = order.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [order[i], order[j]] = [order[j], order[i]];
+            }
+
+            if (length > 1 && order.every((value, index) => value === index)) {
+                order.push(order.shift());
+            }
+
+            return order;
+        }
+
+        function makeQinTargetLaneOrder(length) {
+            const lanes = Array.from({ length: qinState.laneCount }, (_, index) => index);
+            const visibleLength = Math.min(length, qinState.targetQueueSize || length);
+            let order = [];
+
+            for (let attempt = 0; attempt < 12; attempt++) {
+                order = [];
+
+                while (order.length < length) {
+                    const shuffled = makeQinShuffledIndices(lanes.length).map((index) => lanes[index]);
+                    order.push(...shuffled);
+                }
+
+                order = order.slice(0, length);
+                if (!isQinAscendingLaneOrder(order.slice(0, visibleLength))) {
+                    return order;
+                }
+            }
+
+            if (order.length > 1) {
+                [order[0], order[1]] = [order[1], order[0]];
+            }
+            return order;
+        }
+
+        function isQinAscendingLaneOrder(order) {
+            return order.length > 1 && order.every((lane, index) => (
+                index === 0 || lane > order[index - 1]
+            ));
+        }
+
+        function fillQinTargetQueue() {
+            if (!qinState || qinState.locked || !qinState.track) return;
+
+            const activeTargetCount = qinState.tiles.filter((tile) => tile.target).length;
+            const now = Date.now();
+            if (activeTargetCount >= qinState.targetQueueSize || now - qinState.lastTargetSpawnAt < qinState.targetSpawnDelay) return;
+
+            const targetIndex = qinState.nextTargetIndex;
+            const char = qinState.targetPhrase.charAt(targetIndex);
+            if (!char) return;
+
+            spawnQinTile({
+                char,
+                category: 'calm',
+                target: true,
+                targetIndex,
+                lane: qinState.targetLaneOrder[targetIndex] ?? (targetIndex % qinState.laneCount)
+            });
+            qinState.nextTargetIndex += 1;
+            qinState.lastTargetSpawnAt = now;
+        }
+
+        function spawnQinDecoy() {
+            if (!qinState || qinState.locked || !qinState.track || qinState.tiles.length > 13) return;
+
+            const phrase = qinIdioms.tense[Math.floor(Math.random() * qinIdioms.tense.length)];
+            const char = phrase.charAt(Math.floor(Math.random() * phrase.length));
+            const lane = getQinDecoyLane();
+            if (lane === null) return;
+
+            spawnQinTile({
+                char,
+                category: 'tense',
+                target: false,
+                lane
+            });
+        }
+
+        function getQinDecoyLane() {
+            if (!qinState) return null;
+
+            const targetLanes = new Set(qinState.tiles.filter((tile) => tile.target).map((tile) => tile.lane));
+            const lanes = Array.from({ length: qinState.laneCount }, (_, index) => index);
+            const clearLanes = lanes.filter((lane) => (
+                !targetLanes.has(lane)
+                && !qinState.tiles.some((tile) => tile.lane === lane && tile.y < 150)
+            ));
+            const fallbackLanes = lanes.filter((lane) => !targetLanes.has(lane));
+            const lanePool = clearLanes.length ? clearLanes : fallbackLanes;
+
+            if (!lanePool.length) return null;
+            return lanePool[Math.floor(Math.random() * lanePool.length)];
+        }
+
+        function clearQinDecoysFromLane(lane) {
+            if (!qinState) return;
+
+            qinState.tiles
+                .filter((tile) => !tile.target && tile.lane === lane)
+                .forEach((tile) => removeQinTile(tile));
+        }
+
+        function spawnQinTile(item) {
+            if (!qinState || !qinState.track) return;
+
+            const tileNode = document.createElement('button');
+            const trackHeight = qinState.track.clientHeight || 360;
+            if (item.target) {
+                clearQinDecoysFromLane(item.lane);
+            }
+            const targetOffset = item.target ? (item.targetOffset ?? 0) : 0;
+            const speed = Math.min(150, Math.max(78, trackHeight / 5.9 + qinState.completed * 4 + (item.target ? 0 : 8)));
+            const tile = {
+                id: qinState.nextTileId++,
+                char: item.char,
+                category: item.category,
+                target: item.target,
+                targetIndex: item.targetIndex ?? null,
+                lane: item.lane,
+                y: -78 - targetOffset,
+                speed,
+                node: tileNode
+            };
+
+            tileNode.className = `qin-tile is-${item.category}${item.target ? ' is-target' : ''}`;
+            tileNode.type = 'button';
+            tileNode.textContent = item.char;
+            tileNode.setAttribute('aria-label', `${item.target ? '自在' : '緊張'}字 ${item.char}`);
+            tileNode.style.left = `${((item.lane + 0.5) / qinState.laneCount) * 100}%`;
+            tileNode.style.setProperty('--y', `${tile.y}px`);
+            tileNode.addEventListener('click', () => handleQinTileHit(tile.id));
+
+            qinState.tiles.push(tile);
+            qinState.track.appendChild(tileNode);
+            updateQinTileStates();
+        }
+
+        function animateQinTiles(timestamp) {
+            if (!qinState || qinState.locked) return;
+
+            if (!qinState.lastFrameAt) {
+                qinState.lastFrameAt = timestamp;
+            }
+            const delta = Math.min(48, timestamp - qinState.lastFrameAt);
+            qinState.lastFrameAt = timestamp;
+            const trackHeight = qinState.track ? qinState.track.clientHeight : 360;
+
+            qinState.tiles.slice().forEach((tile) => {
+                if (!qinState.tiles.includes(tile)) return;
+
+                tile.y += tile.speed * (delta / 1000);
+                tile.node.style.setProperty('--y', `${tile.y}px`);
+
+                if (tile.y > trackHeight + 126) {
+                    removeQinTile(tile);
+                    if (tile.target) {
+                        qinState.nextTargetIndex = Math.min(qinState.nextTargetIndex, tile.targetIndex);
+                        updateQinMessage(`「${tile.char}」落下了，穩住琴聲再補接。`);
+                        trackQinTimeout(() => fillQinTargetQueue(), 220);
+                    }
+                }
+            });
+
+            qinAnimationFrame = requestAnimationFrame(animateQinTiles);
+        }
+
+        function handleQinTileHit(tileId) {
+            if (!qinState || qinState.locked) return;
+
+            const tile = qinState.tiles.find((item) => item.id === tileId);
+            if (!tile) return;
+
+            if (!tile.target) {
+                removeQinTile(tile);
+                registerQinMistake(`「${tile.char}」帶著緊張之氣，不可接。`);
+                return;
+            }
+
+            const expectedChar = qinState.targetPhrase.charAt(qinState.targetIndex);
+            if (tile.targetIndex !== qinState.targetIndex || tile.char !== expectedChar) {
+                updateQinMessage(`先接「${expectedChar}」，照成語順序來。`);
+                return;
+            }
+
+            collectQinTile(tile);
+            playQinCorrectSparkSound(qinState.targetIndex);
+            qinState.targetIndex += 1;
+            updateQinHud();
+
+            if (qinState.targetIndex >= qinState.targetPhrase.length) {
+                const completedPhrase = qinState.targetPhrase;
+                qinState.completedPhrases.push(completedPhrase);
+                qinState.completed += 1;
+                updateQinHud();
+                updateQinMessage(`「${completedPhrase}」已成，琴聲更穩。`);
+
+                if (qinState.completed >= qinState.targetScore) {
+                    finishQinTilesGame(true, '城樓琴聲從容不亂，斥候再無破綻可尋。');
+                    return;
+                }
+
+                trackQinTimeout(() => chooseNextQinPhrase(), 260);
+                return;
+            }
+
+            updateQinMessage(`下一字：${qinState.targetPhrase.charAt(qinState.targetIndex)}`);
+            trackQinTimeout(() => fillQinTargetQueue(), qinState.targetSpawnDelay);
+        }
+
+        function removeQinTile(tile) {
+            if (!qinState) return;
+
+            qinState.tiles = qinState.tiles.filter((item) => item.id !== tile.id);
+            tile.node.remove();
+        }
+
+        function collectQinTile(tile) {
+            if (!qinState) return;
+
+            qinState.tiles = qinState.tiles.filter((item) => item.id !== tile.id);
+            tile.node.disabled = true;
+            tile.node.classList.add('is-caught');
+            showQinSpark(tile);
+            flashQinCatcher();
+            setTimeout(() => tile.node.remove(), 120);
+        }
+
+        function showQinSpark(tile) {
+            if (!qinState || !qinState.track) return;
+
+            const spark = document.createElement('div');
+            const tileSize = tile.node.offsetWidth || 58;
+            spark.className = 'qin-spark';
+            spark.style.left = tile.node.style.left;
+            spark.style.top = `${Math.max(28, tile.y + tileSize / 2)}px`;
+            qinState.track.appendChild(spark);
+            setTimeout(() => spark.remove(), 520);
+        }
+
+        function flashQinCatcher() {
+            const catcher = document.querySelector('.qin-catcher');
+            if (!catcher) return;
+
+            catcher.classList.remove('is-sparked');
+            void catcher.offsetWidth;
+            catcher.classList.add('is-sparked');
+            setTimeout(() => catcher.classList.remove('is-sparked'), 260);
+        }
+
+        function registerQinMistake(message) {
+            if (!qinState || qinState.locked) return;
+
+            qinState.mistakes += 1;
+            qinState.targetIndex = 0;
+            qinState.nextTargetIndex = 0;
+            qinState.tiles
+                .filter((tile) => tile.target)
+                .forEach((tile) => removeQinTile(tile));
+            playQinMistakeSound();
+            updateQinHud();
+            updateQinMessage(message);
+
+            if (qinState.mistakes >= qinState.maxMistakes) {
+                finishQinTilesGame(false, '琴聲被緊張字打亂。');
+                return;
+            }
+
+            trackQinTimeout(() => fillQinTargetQueue(), 260);
+        }
+
+        function updateQinHud() {
+            if (!qinState) return;
+
+            const score = document.getElementById('qin-score');
+            const time = document.getElementById('qin-time');
+            const mistakes = document.getElementById('qin-mistakes');
+            const targetPhrase = document.getElementById('qin-target-phrase');
+            const catcherHint = document.getElementById('qin-catcher-hint');
+
+            if (score) score.textContent = `${qinState.completed}/${qinState.targetScore}`;
+            if (time) time.textContent = qinState.timeLeft;
+            if (mistakes) mistakes.textContent = `${qinState.mistakes}/${qinState.maxMistakes}`;
+            if (targetPhrase) {
+                targetPhrase.innerHTML = qinState.targetPhrase.split('').map((char, index) => {
+                    const caughtClass = index < qinState.targetIndex ? ' is-caught' : '';
+                    return `<span class="qin-target-char${caughtClass}">${escapeHtml(char)}</span>`;
+                }).join('');
+            }
+            if (catcherHint) {
+                const nextChar = qinState.targetPhrase.charAt(qinState.targetIndex);
+                catcherHint.textContent = nextChar ? `點下一字：${nextChar}` : '準備下一句';
+            }
+            updateQinTileStates();
+        }
+
+        function updateQinTileStates() {
+            if (!qinState) return;
+
+            qinState.tiles.forEach((tile) => {
+                tile.node.classList.toggle('is-next', tile.target && tile.targetIndex === qinState.targetIndex);
+            });
+        }
+
+        function updateQinMessage(message) {
+            const messageNode = document.getElementById('qin-message');
+            if (messageNode) {
+                messageNode.textContent = message;
+            }
+        }
+
+        function finishQinTilesGame(success, message) {
+            if (!qinState || qinState.locked) return;
+
+            qinState.locked = true;
+            qinState.tiles.forEach((tile) => {
+                tile.node.disabled = true;
+            });
+            updateQinMessage(message);
+            playQinCadence(success);
+
+            qinTimers.forEach((timer) => {
+                if (timer.type === 'interval') {
+                    clearInterval(timer.id);
+                } else {
+                    clearTimeout(timer.id);
+                }
+            });
+            qinTimers = [];
+            if (qinAnimationFrame) {
+                cancelAnimationFrame(qinAnimationFrame);
+                qinAnimationFrame = null;
+            }
+            setTimeout(() => resumeGameMusicAfterQinGame(), 720);
+
+            const nextScene = success ? qinState.successScene : qinState.failScene;
+            if (success) {
+                applyEffects(qinState.successEffects);
+                showQinTilesSuccessDialog(nextScene, message);
+                return;
+            }
+
+            trackQinTimeout(() => loadScene(nextScene), 850);
+        }
+
+        function showQinTilesSuccessDialog(nextScene, message) {
+            const result = document.createElement('div');
+            result.className = 'whack-result';
+
+            const card = document.createElement('div');
+            card.className = 'whack-result-card';
+
+            const title = document.createElement('h2');
+            title.textContent = '琴聲成句';
+
+            const detail = document.createElement('p');
+            detail.textContent = `${message} 按下確定後繼續劇情。`;
+
+            const confirmButton = document.createElement('button');
+            confirmButton.className = 'whack-confirm-btn';
+            confirmButton.type = 'button';
+            confirmButton.textContent = '確定';
+            confirmButton.addEventListener('click', () => {
+                playQinCatchSound(3);
+                loadScene(nextScene);
+            });
+
+            card.appendChild(title);
+            card.appendChild(detail);
+            card.appendChild(confirmButton);
+            result.appendChild(card);
+            stageGameLayer.appendChild(result);
+            try {
+                confirmButton.focus({ preventScroll: true });
+            } catch (error) {
+                confirmButton.focus();
+            }
+        }
+
+        function renderWhackGame(scene) {
+            ensureTypingAudio();
+            const config = {
+                duration: 18,
+                targetScore: 8,
+                maxMistakes: 3,
+                successScene: 'path_control',
+                failScene: 'bad_end_whack',
+                ...scene.whackGame
+            };
+
+            whackState = {
+                score: 0,
+                mistakes: 0,
+                timeLeft: config.duration,
+                targetScore: config.targetScore,
+                maxMistakes: config.maxMistakes,
+                successScene: config.successScene,
+                failScene: config.failScene,
+                activeItems: Array(9).fill(null),
+                locked: false,
+                holes: []
+            };
+
+            choicesContainer.innerHTML = '';
+            stageGameLayer.innerHTML = '';
+            stageGameLayer.classList.add('is-active');
+            gameContainer.classList.add('is-whack-scene');
+
+            const panel = document.createElement('div');
+            panel.className = 'whack-panel';
+            panel.innerHTML = `
+                <div class="whack-status">
+                    <div class="whack-stat">命中<strong id="whack-score">0/${config.targetScore}</strong></div>
+                    <div class="whack-stat">時間<strong id="whack-time">${config.duration}</strong></div>
+                    <div class="whack-stat">失誤<strong id="whack-mistakes">0/${config.maxMistakes}</strong></div>
+                </div>
+                <div class="whack-grid" aria-label="九洞打地鼠"></div>
+                <div class="whack-message" id="whack-message">打中吵、狂；避開兵、掃。</div>
+            `;
+
+            const grid = panel.querySelector('.whack-grid');
+            for (let i = 0; i < 9; i++) {
+                const hole = document.createElement('button');
+                hole.className = 'whack-hole';
+                hole.type = 'button';
+                hole.setAttribute('aria-label', `第 ${i + 1} 洞`);
+                hole.innerHTML = `
+                    <span class="whack-piece">
+                        <img class="whack-img is-missing" alt="">
+                        <span class="whack-label"></span>
+                    </span>
+                `;
+
+                const img = hole.querySelector('.whack-img');
+                img.addEventListener('load', () => img.classList.remove('is-missing'));
+                img.addEventListener('error', () => img.classList.add('is-missing'));
+                hole.addEventListener('click', () => handleWhackHit(i));
+                whackState.holes.push(hole);
+                grid.appendChild(hole);
+            }
+
+            stageGameLayer.appendChild(panel);
+            updateWhackHud();
+
+            trackWhackInterval(() => {
+                if (!whackState || whackState.locked) return;
+                whackState.timeLeft -= 1;
+                updateWhackHud();
+                if (whackState.timeLeft <= 0) {
+                    finishWhackGame(false, '斥候已察覺街面騷動。');
+                }
+            }, 1000);
+
+            scheduleWhackSpawn(250);
+        }
+
+        function scheduleWhackSpawn(delay = 620) {
+            trackWhackTimeout(() => {
+                if (!whackState || whackState.locked) return;
+                spawnWhackItem();
+                scheduleWhackSpawn(460 + Math.floor(Math.random() * 360));
+            }, delay);
+        }
+
+        function spawnWhackItem() {
+            const emptyHoles = whackState.activeItems
+                .map((item, index) => item ? null : index)
+                .filter((index) => index !== null);
+
+            if (!emptyHoles.length) return;
+
+            const targetItems = [
+                { label: '吵', src: IMG('吵.png'), target: true },
+                { label: '狂', src: IMG('狂.png'), target: true }
+            ];
+            const decoyItems = [
+                { label: '兵', src: IMG('兵.png'), target: false },
+                { label: '掃', src: IMG('掃.png'), target: false }
+            ];
+            const itemPool = Math.random() < 0.65 ? targetItems : decoyItems;
+            const item = itemPool[Math.floor(Math.random() * itemPool.length)];
+            const holeIndex = emptyHoles[Math.floor(Math.random() * emptyHoles.length)];
+
+            whackState.activeItems[holeIndex] = item;
+            setWhackHoleItem(holeIndex, item);
+            playWhackSound('pop');
+
+            trackWhackTimeout(() => {
+                if (!whackState || whackState.locked) return;
+                if (whackState.activeItems[holeIndex] === item) {
+                    clearWhackHole(holeIndex);
+                }
+            }, 920);
+        }
+
+        function setWhackHoleItem(index, item) {
+            const hole = whackState.holes[index];
+            const img = hole.querySelector('.whack-img');
+            const label = hole.querySelector('.whack-label');
+
+            img.classList.add('is-missing');
+            img.src = item.src.replace(/^url\(['"]?/, '').replace(/['"]?\)$/, '');
+            img.alt = item.label;
+            label.textContent = item.label;
+            hole.classList.add('active');
+        }
+
+        function clearWhackHole(index) {
+            const hole = whackState.holes[index];
+            const img = hole.querySelector('.whack-img');
+            const label = hole.querySelector('.whack-label');
+
+            whackState.activeItems[index] = null;
+            hole.classList.remove('active');
+            img.removeAttribute('src');
+            img.alt = '';
+            label.textContent = '';
+        }
+
+        function handleWhackHit(index) {
+            if (!whackState || whackState.locked) return;
+
+            const item = whackState.activeItems[index];
+            if (!item) return;
+
+            const hole = whackState.holes[index];
+            clearWhackHole(index);
+
+            if (item.target) {
+                whackState.score += 1;
+                flashWhackHole(hole, 'hit');
+                playWhackSound('hit');
+                updateWhackMessage(`${item.label} 已壓下。`);
+                if (whackState.score >= whackState.targetScore) {
+                    finishWhackGame(true, '街面重歸寂靜。');
+                }
+            } else {
+                whackState.mistakes += 1;
+                flashWhackHole(hole, 'wrong');
+                updateWhackMessage(`${item.label} 不可打。`);
+                if (whackState.mistakes >= whackState.maxMistakes) {
+                    finishWhackGame(false, '軍令失準，街面失控。');
+                }
+            }
+
+            updateWhackHud();
+        }
+
+        function flashWhackHole(hole, className) {
+            hole.classList.add(className);
+            trackWhackTimeout(() => hole.classList.remove(className), 220);
+        }
+
+        function updateWhackHud() {
+            const score = document.getElementById('whack-score');
+            const time = document.getElementById('whack-time');
+            const mistakes = document.getElementById('whack-mistakes');
+            if (!score || !time || !mistakes || !whackState) return;
+
+            score.textContent = `${whackState.score}/${whackState.targetScore}`;
+            time.textContent = whackState.timeLeft;
+            mistakes.textContent = `${whackState.mistakes}/${whackState.maxMistakes}`;
+        }
+
+        function updateWhackMessage(message) {
+            const messageNode = document.getElementById('whack-message');
+            if (messageNode) {
+                messageNode.textContent = message;
+            }
+        }
+
+        function finishWhackGame(success, message) {
+            if (!whackState || whackState.locked) return;
+
+            whackState.locked = true;
+            whackState.holes.forEach((hole) => {
+                hole.disabled = true;
+                hole.classList.remove('active');
+            });
+            updateWhackMessage(message);
+
+            const nextScene = success ? whackState.successScene : whackState.failScene;
+            playWhackSound(success ? 'success' : 'fail');
+            whackTimers.forEach((timer) => {
+                if (timer.type === 'interval') {
+                    clearInterval(timer.id);
+                } else {
+                    clearTimeout(timer.id);
+                }
+            });
+            whackTimers = [];
+            if (success) {
+                showWhackSuccessDialog(nextScene, message);
+                return;
+            }
+
+            trackWhackTimeout(() => loadScene(nextScene), 700);
+        }
+
+        function showWhackSuccessDialog(nextScene, message) {
+            const result = document.createElement('div');
+            result.className = 'whack-result';
+
+            const card = document.createElement('div');
+            card.className = 'whack-result-card';
+
+            const title = document.createElement('h2');
+            title.textContent = '恭喜過關';
+
+            const detail = document.createElement('p');
+            detail.textContent = `${message} 按下確定後繼續劇情。`;
+
+            const confirmButton = document.createElement('button');
+            confirmButton.className = 'whack-confirm-btn';
+            confirmButton.type = 'button';
+            confirmButton.textContent = '確定';
+            confirmButton.addEventListener('click', () => {
+                playWhackSound('hit');
+                loadScene(nextScene);
+            });
+
+            card.appendChild(title);
+            card.appendChild(detail);
+            card.appendChild(confirmButton);
+            result.appendChild(card);
+            stageGameLayer.appendChild(result);
+            try {
+                confirmButton.focus({ preventScroll: true });
+            } catch (error) {
+                confirmButton.focus();
+            }
+        }
+
+        function renderChoices(scene) {
+            choicesContainer.innerHTML = '';
+            if (isFailureScene(scene) && canRewind()) {
+                const rewindBtn = document.createElement('button');
+                rewindBtn.className = 'choice-btn is-rewind';
+                rewindBtn.type = 'button';
+                rewindBtn.innerHTML = '時光倒流<small>僅此一次，回到上一個選擇機會</small>';
+                rewindBtn.onclick = rewindToPreviousChoice;
+                choicesContainer.appendChild(rewindBtn);
+            }
+            scene.choices.forEach((choice) => {
+                const btn = document.createElement('button');
+                btn.className = 'choice-btn';
+                btn.type = 'button';
+                btn.innerHTML = `${choice.text}${choice.note ? `<small>${choice.note}</small>` : ''}`;
+                btn.onclick = () => {
+                    recordChoiceCheckpoint();
+                    applyEffects(choice.effects);
+                    loadScene(choice.nextScene);
+                };
+                choicesContainer.appendChild(btn);
+            });
+        }
+
+        function recordChoiceCheckpoint() {
+            const scene = getScene(currentSceneId);
+            if (!scene || scene.ending) return;
+
+            choiceHistory.push({
+                sceneId: currentSceneId,
+                stats: { ...stats },
+                musicTime: gameMusic.currentTime || 0
+            });
+            if (choiceHistory.length > 12) {
+                choiceHistory = choiceHistory.slice(-12);
+            }
+            saveGame();
+        }
+
+        function isFailureScene(scene) {
+            return Boolean(scene && scene.ending && (
+                scene.chapter === '敗局'
+                || scene.chapter === '失敗結局'
+                || scene.speaker === '遊戲失敗'
+                || scene.speaker === '琴聲失序'
+                || String(scene.speaker || '').startsWith('敗局')
+            ));
+        }
+
+        function canRewind() {
+            return !rewindUsed && choiceHistory.length > 0;
+        }
+
+        function rewindToPreviousChoice() {
+            if (!canRewind()) return;
+
+            const checkpoint = choiceHistory.pop();
+            rewindUsed = true;
+            stats = { ...initialStats, ...checkpoint.stats };
+            shouldResumeMusicAfterQin = false;
+            gameMusic.currentTime = checkpoint.musicTime || 0;
+            startGameMusic(false);
+            loadScene(checkpoint.sceneId);
+        }
+
+        function typeWriterEffect(text, callback, withSound = false) {
+            let i = 0;
+            dialogueText.classList.add('cursor');
+
+            typeWriterInterval = setInterval(() => {
+                if (i >= text.length) {
+                    finishTyping(callback);
+                    return;
+                }
+
+                const char = text.charAt(i);
+                dialogueText.innerHTML += char === '\n' ? '<br>' : escapeHtml(char);
+                if (withSound && char.trim()) {
+                    playTypingSound();
+                }
+                i++;
+            }, 24);
+        }
+
+        function finishTyping(callback) {
+            clearInterval(typeWriterInterval);
+            dialogueText.classList.remove('cursor');
+            typingDone = true;
+            document.getElementById('dialogue-box').scrollTop = document.getElementById('dialogue-box').scrollHeight;
+            if (callback) callback();
+        }
+
+        function escapeHtml(char) {
+            const span = document.createElement('span');
+            span.textContent = char;
+            return span.innerHTML;
+        }
+
+        dialogueText.addEventListener('click', () => {
+            if (typingDone) return;
+            const scene = getScene(currentSceneId);
+            clearInterval(typeWriterInterval);
+            dialogueText.innerHTML = activeText.split('\n').map((line) => {
+                const span = document.createElement('span');
+                span.textContent = line;
+                return span.innerHTML;
+            }).join('<br>');
+            finishTyping(() => renderSceneAction(scene));
+        });
+
+        function showTitleScreen() {
+            openingVideo.pause();
+            openingVideoScreen.classList.remove('is-active');
+            playOpeningBtn.classList.remove('is-visible');
+            titleScreen.classList.remove('hide');
+            openingRestartBtn.classList.remove('is-visible');
+            restartTitleAnimation();
+        }
+
+        function restartTitleAnimation() {
+            const animatedNodes = titleScreen.querySelectorAll('.generated-title-image, .title-mark, .title-subtitle, .title-credit, #start-game-btn');
+            animatedNodes.forEach((node) => {
+                node.style.animation = 'none';
+                void node.offsetWidth;
+                node.style.animation = '';
+            });
+        }
+
+        function returnToTitleScreen() {
+            gameHasBegun = false;
+            clearInterval(typeWriterInterval);
+            clearCharacterTimeouts();
+            clearTimeout(associationTimeout);
+            clearWhackGame();
+            clearQinTilesGame();
+            clearRoutePlanGame();
+            stopGameMusic();
+            localStorage.removeItem(STORAGE_KEY);
+            currentSceneId = 'start';
+            stats = { ...initialStats };
+            choiceHistory = [];
+            rewindUsed = false;
+            updateStats();
+            gameContainer.classList.add('is-hidden');
+            openingVideoScreen.classList.remove('is-active');
+            playOpeningBtn.classList.remove('is-visible');
+            openingRestartBtn.classList.remove('is-visible');
+            titleScreen.classList.remove('hide');
+            restartTitleAnimation();
+        }
+
+        function beginGame() {
+            if (gameHasBegun) return;
+            gameHasBegun = true;
+            openingVideo.pause();
+            openingVideoScreen.classList.remove('is-active');
+            playOpeningBtn.classList.remove('is-visible');
+            titleScreen.classList.add('hide');
+            gameContainer.classList.remove('is-hidden');
+            startGameMusic(true);
+            localStorage.removeItem(STORAGE_KEY);
+            currentSceneId = 'start';
+            stats = { ...initialStats };
+            choiceHistory = [];
+            rewindUsed = false;
+            loadScene('start');
+        }
+
+        function returnToOpeningVideo() {
+            gameHasBegun = false;
+            clearInterval(typeWriterInterval);
+            clearCharacterTimeouts();
+            clearTimeout(associationTimeout);
+            clearWhackGame();
+            clearQinTilesGame();
+            clearRoutePlanGame();
+            stopGameMusic();
+            localStorage.removeItem(STORAGE_KEY);
+            currentSceneId = 'start';
+            stats = { ...initialStats };
+            choiceHistory = [];
+            rewindUsed = false;
+            updateStats();
+            gameContainer.classList.add('is-hidden');
+            titleScreen.classList.add('hide');
+            openingRestartBtn.classList.remove('is-visible');
+            openingVideoScreen.classList.add('is-active');
+            playOpeningBtn.classList.remove('is-visible');
+            openingVideo.currentTime = 0;
+            openingVideo.muted = false;
+            const playOpening = openingVideo.play();
+            if (playOpening) {
+                playOpening.catch(() => playOpeningBtn.classList.add('is-visible'));
+            }
+        }
+
+        restartBtn.addEventListener('click', resetGame);
+        openingRestartBtn.addEventListener('click', returnToOpeningVideo);
+        startGameBtn.addEventListener('click', () => {
+            ensureTypingAudio();
+            beginGame();
+        });
+        openingVideo.addEventListener('ended', showTitleScreen);
+        playOpeningBtn.addEventListener('click', () => {
+            openingVideo.muted = false;
+            playOpeningBtn.classList.remove('is-visible');
+            const playOpening = openingVideo.play();
+            if (playOpening) {
+                playOpening.catch(() => playOpeningBtn.classList.add('is-visible'));
+            }
+        });
+        skipOpeningBtn.addEventListener('click', showTitleScreen);
+
+        window.addEventListener('DOMContentLoaded', () => {
+            updateStats();
+            openingVideo.currentTime = 0;
+            openingVideo.muted = false;
+            const playOpening = openingVideo.play();
+            if (playOpening) {
+                playOpening.catch(() => playOpeningBtn.classList.add('is-visible'));
+            }
+        });
+    </script>
+</body>
+</html>

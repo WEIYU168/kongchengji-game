@@ -1,0 +1,14 @@
+{
+  "title": "第四幕：迷霧森林",
+  "text": "你踏入濃密的霧林，四周回蕩著不明的低語。你必須選擇：\n1. 繼續前進，冒險探索。\n2. 原路返回，避免危險。",
+  "image": "assets/images/scene4.jpg",
+  "choices": [
+    {"text": "繼續前進", "next": "5", "statsDelta": {"智謀": 1, "鎮定": -1}},
+    {"text": "原路返回", "next": "5", "statsDelta": {"司馬懿疑心": 2}}
+  ],
+  "quiz": {
+    "question": "以下哪個詞語與霧林相關？",
+    "options": ["雲海", "濃霧", "陽光"],
+    "answerIndex": 1
+  }
+}
