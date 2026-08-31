@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>空城計 - 心理戰互動遊戲</title>
+    <link rel="preload" as="video" href="./開場影片.mp4" type="video/mp4" fetchpriority="high">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap');
 
@@ -64,6 +65,20 @@
 
         #opening-video-screen.is-active {
             display: grid;
+        }
+
+        #opening-video-screen.is-loading::before {
+            content: "影片載入中...";
+            position: absolute;
+            z-index: 3;
+            left: 50%;
+            bottom: 82px;
+            transform: translateX(-50%);
+            padding: 8px 12px;
+            border-radius: 6px;
+            color: #fff7d6;
+            background: rgba(15, 23, 42, 0.76);
+            font-size: 0.95rem;
         }
 
         #opening-video {
@@ -1636,15 +1651,15 @@
     </section>
 
     <section id="opening-video-screen" class="is-active" aria-label="開場影片">
-        <video id="opening-video" src="./開場影片.mp4" playsinline autoplay preload="auto"></video>
+        <video id="opening-video" src="./開場影片.mp4" playsinline preload="auto" poster="./assets/images/optimized/西城空無一人.webp"></video>
         <button id="play-opening-btn" type="button">播放開場</button>
         <button id="skip-opening-btn" type="button">略過</button>
     </section>
-    <audio id="game-music" src="./空城音樂.mp3" loop preload="auto"></audio>
-    <audio id="right-sound" src="./right.mp3" preload="auto"></audio>
-    <audio id="wrong-sound" src="./wrong.mp3" preload="auto"></audio>
-    <audio id="over-sound" src="./over.mp3" preload="auto"></audio>
-    <audio id="finish-sound" src="./finish.mp3" preload="auto"></audio>
+    <audio id="game-music" src="./空城音樂.mp3" loop preload="metadata"></audio>
+    <audio id="right-sound" src="./right.mp3" preload="none"></audio>
+    <audio id="wrong-sound" src="./wrong.mp3" preload="none"></audio>
+    <audio id="over-sound" src="./over.mp3" preload="none"></audio>
+    <audio id="finish-sound" src="./finish.mp3" preload="none"></audio>
     <button id="opening-restart-btn" type="button">重頭開始</button>
     <button id="music-toggle-btn" type="button" aria-pressed="false" aria-label="關閉背景音樂" title="關閉背景音樂">🔊</button>
 
@@ -2252,6 +2267,7 @@
         let lastWhackPopAt = 0;
         let lastFeedbackKind = '';
         let lastFeedbackAt = 0;
+        let gameAssetsWarmed = false;
 
         const qinIdioms = {
             calm: ['面不改色', '從容不迫', '神態自若', '鎮定自若', '心如止水', '不慌不忙', '悠然自得', '從容安閒'],
@@ -2331,6 +2347,20 @@
         function warmGameImages() {
             preloadImageNames(CRITICAL_IMAGE_NAMES, 'high');
             scheduleIdle(() => preloadImageNames([...imageAssetNames], 'low'), 1600);
+        }
+
+        function warmGameAudio() {
+            [gameMusic, ...Object.values(feedbackSounds)].forEach((audio) => {
+                audio.preload = 'auto';
+                audio.load();
+            });
+        }
+
+        function warmGameAssets() {
+            if (gameAssetsWarmed) return;
+            gameAssetsWarmed = true;
+            warmGameImages();
+            warmGameAudio();
         }
 
         function ensureTypingAudio() {
@@ -4031,11 +4061,12 @@
 
         function showTitleScreen() {
             openingVideo.pause();
-            openingVideoScreen.classList.remove('is-active');
+            openingVideoScreen.classList.remove('is-active', 'is-loading');
             playOpeningBtn.classList.remove('is-visible');
             titleScreen.classList.remove('hide');
             openingRestartBtn.classList.remove('is-visible');
             restartTitleAnimation();
+            warmGameAssets();
         }
 
         function restartTitleAnimation() {
@@ -4112,10 +4143,7 @@
             playOpeningBtn.classList.remove('is-visible');
             openingVideo.currentTime = 0;
             openingVideo.muted = false;
-            const playOpening = openingVideo.play();
-            if (playOpening) {
-                playOpening.catch(() => playOpeningBtn.classList.add('is-visible'));
-            }
+            prepareOpeningVideoPlayback();
         }
 
         restartBtn.addEventListener('click', resetGame);
@@ -4125,27 +4153,49 @@
             ensureTypingAudio();
             beginGame();
         });
-        openingVideo.addEventListener('ended', showTitleScreen);
-        playOpeningBtn.addEventListener('click', () => {
-            openingVideo.muted = false;
-            playOpeningBtn.classList.remove('is-visible');
+        function tryPlayOpeningVideo() {
+            if (!openingVideoScreen.classList.contains('is-active')) return;
+
+            openingVideoScreen.classList.remove('is-loading');
             const playOpening = openingVideo.play();
             if (playOpening) {
                 playOpening.catch(() => playOpeningBtn.classList.add('is-visible'));
             }
+        }
+
+        function prepareOpeningVideoPlayback() {
+            playOpeningBtn.classList.remove('is-visible');
+            openingVideoScreen.classList.add('is-loading');
+            if ('fetchPriority' in openingVideo) {
+                openingVideo.fetchPriority = 'high';
+            }
+            openingVideo.load();
+            if (openingVideo.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+                tryPlayOpeningVideo();
+                return;
+            }
+            openingVideo.addEventListener('canplay', tryPlayOpeningVideo, { once: true });
+        }
+
+        openingVideo.addEventListener('ended', showTitleScreen);
+        openingVideo.addEventListener('playing', () => openingVideoScreen.classList.remove('is-loading'));
+        openingVideo.addEventListener('error', () => {
+            openingVideoScreen.classList.remove('is-loading');
+            playOpeningBtn.classList.add('is-visible');
+        });
+        playOpeningBtn.addEventListener('click', () => {
+            openingVideo.muted = false;
+            playOpeningBtn.classList.remove('is-visible');
+            tryPlayOpeningVideo();
         });
         skipOpeningBtn.addEventListener('click', showTitleScreen);
 
         window.addEventListener('DOMContentLoaded', () => {
-            warmGameImages();
             updateStats();
             updateMusicToggle();
             openingVideo.currentTime = 0;
             openingVideo.muted = false;
-            const playOpening = openingVideo.play();
-            if (playOpening) {
-                playOpening.catch(() => playOpeningBtn.classList.add('is-visible'));
-            }
+            prepareOpeningVideoPlayback();
         });
         window.addEventListener('resize', updateMusicToggle);
     </script>
